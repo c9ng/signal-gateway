@@ -2,6 +2,10 @@ import { randomBytes } from 'crypto';
 import { DataType, Model, Column, Table, AllowNull, PrimaryKey, Default, Comment } from 'sequelize-typescript';
 import { literal } from 'sequelize';
 import * as bcrypt from 'bcrypt';
+import { NODE_ENV } from '../config/env';
+import * as db from '../config/db';
+
+const DIALECT = db[NODE_ENV].dialect;
 
 export const BCRYPT_SALT_ROUNDS = 10;
 export const SECRET_BYTES = 48;
@@ -30,11 +34,13 @@ export default class OauthClient extends Model {
     secretHash!: string;
 
     @AllowNull
-    @Column(DataType.ARRAY(DataType.TEXT))
+    @Column(DIALECT === 'postgres' ? DataType.ARRAY(DataType.TEXT) : DataType.JSON)
     redirectUris!: string[];
 
     @AllowNull(false)
-    @Column(DataType.ARRAY(DataType.ENUM('authorization_code', 'client_credentials', 'implicit', 'refresh_token', 'password')))
+    @Column(DIALECT === 'postgres' ?
+        DataType.ARRAY(DataType.ENUM('authorization_code', 'client_credentials', 'implicit', 'refresh_token', 'password')) :
+        DataType.JSON)
     grants!: ('authorization_code'|'client_credentials'|'implicit'|'refresh_token'|'password')[];
 
     @AllowNull

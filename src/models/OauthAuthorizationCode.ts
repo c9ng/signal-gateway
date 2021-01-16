@@ -1,5 +1,9 @@
 import { DataType, Model, Table, Column, BelongsTo, ForeignKey, AllowNull, Default } from 'sequelize-typescript';
 import OauthClient from './OauthClient';
+import { NODE_ENV } from '../config/env';
+import * as db from '../config/db';
+
+const DIALECT = db[NODE_ENV].dialect;
 
 @Table
 export default class OauthAuthorizationCode extends Model {
@@ -23,7 +27,7 @@ export default class OauthAuthorizationCode extends Model {
     // maybe array? node-oauth2-server wants a string everywhere
     @AllowNull(false)
     @Default([])
-    @Column(DataType.ARRAY(DataType.TEXT))
+    @Column(DIALECT === 'postgres' ? DataType.ARRAY(DataType.TEXT) : DataType.JSON)
     scope!: string[];
 
     @AllowNull(false)

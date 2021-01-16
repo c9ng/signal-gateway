@@ -32,12 +32,14 @@ export async function up(query: QueryInterface) {
         },
 
         redirectUris: {
-            type: ARRAY(TEXT),
+            type: DIALECT === 'postgres' ? ARRAY(TEXT) : JSON,
             allowNull: true,
         },
 
         grants: {
-            type: ARRAY(ENUM('authorization_code', 'client_credentials', 'implicit', 'refresh_token', 'password')),
+            type: DIALECT === 'postgres' ?
+                ARRAY(ENUM('authorization_code', 'client_credentials', 'implicit', 'refresh_token', 'password')) :
+                JSON,
             allowNull: false,
         },
 
@@ -105,7 +107,7 @@ export async function up(query: QueryInterface) {
         },
 
         scope: {
-            type: ARRAY(TEXT),
+            type: DIALECT === 'postgres' ? ARRAY(TEXT) : JSON,
             allowNull: false,
             defaultValue: [],
         },
@@ -165,7 +167,7 @@ export async function up(query: QueryInterface) {
         },
 
         scope: {
-            type: ARRAY(TEXT),
+            type: DIALECT === 'postgres' ? ARRAY(TEXT) : JSON,
             allowNull: false,
             defaultValue: [],
         },

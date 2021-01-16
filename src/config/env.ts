@@ -22,8 +22,10 @@ export const DB_DIALECT = (() => {
         case 'postgres':
         case 'sqlite':
         case 'mariadb':
-        case 'mssql':
             return DB_DIALECT;
+
+        case 'mssql':
+            throw new Error(`DB_DIALECT mssql is not supported because it lacks support for JSON columns.`);
 
         default:
             throw new Error(`Illegal DB_DIALECT: ${DB_DIALECT}`);
@@ -31,3 +33,7 @@ export const DB_DIALECT = (() => {
 })();
 
 export const PORT = +(process.env.PORT || 8080);
+
+if (PORT <= 0) {
+    throw new Error(`Illegal PORT: ${PORT}`);
+}
