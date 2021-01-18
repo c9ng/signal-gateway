@@ -1,4 +1,5 @@
 import * as yargs from 'yargs';
+import { v4 as uuidv4 } from 'uuid';
 import './lib/config';
 import { NODE_ENV } from './config/env';
 import OauthClient from './models/OauthClient';
@@ -41,11 +42,12 @@ async function main() {
     }
 
     const client = await OauthClient.create({
+        id: uuidv4(),
         name: argv.name,
         secretHash: await OauthClient.hashSecret(secret),
         grants: [ argv.grant ],
         redirectUris,
-        accessTokenLifetime:  argv['access-token-lifetime'] ?? null,
+        accessTokenLifetime:  argv['access-token-lifetime']  ?? null,
         refreshTokenLifetime: argv['refresh-token-lifetime'] ?? null,
         webhookUri,
         webhookToken,

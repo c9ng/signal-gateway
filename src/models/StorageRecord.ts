@@ -4,12 +4,6 @@ import Account from './Account';
 import { NODE_ENV } from '../config/env';
 import * as db from '../config/db';
 
-export type Value = string | number | boolean | null | Value[] | Data;
-
-export interface Data {
-    [key: string]: Value
-}
-
 @Table
 export default class StorageRecord extends Model {
     @PrimaryKey
@@ -41,5 +35,5 @@ export default class StorageRecord extends Model {
 
     @AllowNull(false)
     @Column(db[NODE_ENV].dialect === 'postgres' ? DataType.JSONB : DataType.JSON)
-    data!: Data|null;
+    data!: object;
 }

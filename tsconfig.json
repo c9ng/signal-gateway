@@ -18,7 +18,10 @@
                 "src/types/*"
             ]
         },
-        "types": ["node"]
+        "types": ["node"],
+        "typeRoots": [
+            "./src/types"
+        ]
     },
     "include": [
         "src/**/*.ts",

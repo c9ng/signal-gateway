@@ -23,7 +23,7 @@ function auth(...scopes: string[]) {
 
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const request = new OAuth2Server.Request(req);
+            const request  = new OAuth2Server.Request(req);
             const response = new OAuth2Server.Response(res);
 
             const token = await oauthServer.authenticate(request, response, options);
@@ -38,7 +38,7 @@ function auth(...scopes: string[]) {
 async function obtainToken(req: Request, res: Response, next: NextFunction) {
     let token;
     try {
-        const request = new OAuth2Server.Request(req);
+        const request  = new OAuth2Server.Request(req);
         const response = new OAuth2Server.Response(res);
 
         token = await oauthServer.token(request, response);
@@ -58,12 +58,12 @@ const handle = (handler: (req: Request, res: Response) => Promise<any>) =>
 routes.post('/oauth/token', obtainToken);
 
 // ==== Accounts ====
-routes.post(  '/accounts',            auth('write:accounts'), handle(accountsController.createAccount));
-routes.get(   '/accounts',            auth('read:accounts'),  handle(accountsController.getAccounts));
-routes.get(   '/accounts/:id',        auth('read:accounts'),  handle(accountsController.getAccount));
-routes.post(  '/accounts/:id/verify', auth('write:accounts'), handle(accountsController.verifyAccount));
-routes.patch( '/accounts/:id',        auth('write:accounts'), handle(accountsController.updateAccount));
-routes.delete('/accounts/:id',        auth('write:accounts'), handle(accountsController.deleteAccount));
+routes.post(  '/accounts',             auth('write:accounts'), handle(accountsController.createAccount));
+routes.get(   '/accounts',             auth('read:accounts'),  handle(accountsController.getAccounts));
+routes.get(   '/accounts/:tel',        auth('read:accounts'),  handle(accountsController.getAccount));
+routes.post(  '/accounts/:tel/verify', auth('write:accounts'), handle(accountsController.verifyAccount));
+routes.patch( '/accounts/:tel',        auth('write:accounts'), handle(accountsController.updateAccount));
+routes.delete('/accounts/:tel',        auth('write:accounts'), handle(accountsController.deleteAccount));
 
 // ==== Messages ====
-routes.post('/accounts/:accountId/messages', auth('write:messages'), handle(messagesController.sendMessage));
+routes.post('/accounts/:tel/messages', auth('write:messages'), handle(messagesController.sendMessage));

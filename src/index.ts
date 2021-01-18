@@ -2,6 +2,7 @@ import 'source-map-support/register';
 import * as http from 'http';
 import * as net from 'net';
 import express from 'express';
+import * as bodyParser from 'body-parser';
 import routes from './routes';
 import { PORT } from './config/env';
 import {
@@ -11,18 +12,19 @@ import {
     InvalidClientError, InvalidGrantError
 } from 'oauth2-server';
 import { HttpError } from './errors';
+import * as signalConnections from './connections';
 
 const app = express();
 const server = http.createServer(app)
 
 // track connections for graceful shutdown
-const connections = new Set<net.Socket>();
+const httpConnections = new Set<net.Socket>();
 
 server.on('connection', connection => {
-    connections.add(connection);
+    httpConnections.add(connection);
     connection.on('close', () => {
-        connections.delete(connection);
-        if (connections.size === 0 && !server.listening) {
+        httpConnections.delete(connection);
+        if (httpConnections.size === 0 && !server.listening) {
             afterAllConnectionsShutdown();
         }
     });
@@ -30,6 +32,9 @@ server.on('connection', connection => {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
 app.use('/', routes);
 
@@ -92,9 +97,18 @@ main();
 async function main() {
     console.info(`Starting API server (PID: ${process.pid})...`);
     try {
-        server.listen(PORT, () => {
-            console.info(`REST API is now listening on port ${PORT}!`);
+        await new Promise<void>((resolve, reject) => {
+            try {
+                server.listen(PORT, () => {
+                    console.info(`REST API is now listening on port ${PORT}!`);
+                    resolve();
+                });
+            } catch(error) {
+                reject(error);
+            }
         });
+
+        await signalConnections.startUp();
     } catch(err) {
         console.error(err);
         await afterAllConnectionsShutdown();
@@ -103,9 +117,8 @@ async function main() {
 }
 
 async function afterAllConnectionsShutdown() {
-    console.info('After all connections shutdown handler...');
-
-    // TODO
+    await signalConnections.shutDown();
+    console.log('shutdown complete');
 }
 
 function shutdown(signal: string) {
@@ -119,7 +132,7 @@ function shutdown(signal: string) {
                 console.info('HTTP server is shut down');
             }
 
-            if (connections.size === 0) {
+            if (httpConnections.size === 0) {
                 afterAllConnectionsShutdown();
             }
         });

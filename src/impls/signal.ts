@@ -1,10 +1,15 @@
-import StorageRecord, { Data } from "../models/StorageRecord";
+import StorageRecord from "../models/StorageRecord";
 import { NODE_ENV } from '../config/env';
 import * as db from '../config/db';
+import {
+    ProtocolStoreBackend, IdentityKey, Session,
+    PreKey, SignedPreKey,
+    Unprocessed, Configuration,
+} from "@throneless/libsignal-service";
 
 const DIALECT = db[NODE_ENV].dialect;
 
-export class SignalStorage {
+export class SignalStorage implements ProtocolStoreBackend {
     readonly clientId: string;
     readonly tel: string;
 
@@ -23,11 +28,11 @@ export class SignalStorage {
             }
         });
 
-        return records.map(record => record.data);
+        return records.map(record => record.data as IdentityKey);
     }
 
-    async createOrUpdateIdentityKey(data: Data) {
-        return StorageRecord.upsert({
+    async createOrUpdateIdentityKey(data: IdentityKey) {
+        await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'IdentityKey',
@@ -37,7 +42,7 @@ export class SignalStorage {
     }
 
     async removeIdentityKeyById(id: string) {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -57,11 +62,11 @@ export class SignalStorage {
             }
         });
 
-        return records.map(record => record.data);
+        return records.map(record => record.data as Session);
     }
 
-    async createOrUpdateSession(data: Data) {
-        return StorageRecord.upsert({
+    async createOrUpdateSession(data: Session) {
+        await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'Session',
@@ -71,7 +76,7 @@ export class SignalStorage {
     }
 
     async removeSessionById(id: string) {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -82,7 +87,7 @@ export class SignalStorage {
     }
 
     async postgresRemoveSessionsByNumber(number: string|number) {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -105,7 +110,8 @@ export class SignalStorage {
         });
 
         for (const record of records) {
-            if (record.data?.number === number) {
+            const session = record.data as Session;
+            if (session?.number === number) {
                 await record.destroy();
             }
         }
@@ -116,7 +122,7 @@ export class SignalStorage {
         this.fallbackRemoveSessionsByNumber;
 
     async removeAllSessions() {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -135,11 +141,11 @@ export class SignalStorage {
             }
         });
 
-        return records.map(record => record.data);
+        return records.map(record => record.data as PreKey);
     }
 
-    async createOrUpdatePreKey(data: Data) {
-        return StorageRecord.upsert({
+    async createOrUpdatePreKey(data: PreKey) {
+        await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'PreKey',
@@ -149,7 +155,7 @@ export class SignalStorage {
     }
 
     async removePreKeyById(id: string) {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -160,7 +166,7 @@ export class SignalStorage {
     }
 
     async removeAllPreKeys() {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -179,11 +185,11 @@ export class SignalStorage {
             }
         });
 
-        return records.map(record => record.data);
+        return records.map(record => record.data as SignedPreKey);
     }
 
-    async createOrUpdateSignedPreKey(data: Data) {
-        return StorageRecord.upsert({
+    async createOrUpdateSignedPreKey(data: SignedPreKey) {
+        await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'SignedPreKey',
@@ -193,7 +199,7 @@ export class SignalStorage {
     }
 
     async removeSignedPreKeyById(id: string) {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -204,7 +210,7 @@ export class SignalStorage {
     }
 
     async removeAllSignedPreKeys() {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -223,7 +229,7 @@ export class SignalStorage {
             }
         });
 
-        return records.map(record => record.data);
+        return records.map(record => record.data as Unprocessed);
     }
 
     async getUnprocessedCount() {
@@ -247,11 +253,15 @@ export class SignalStorage {
             }
         });
 
-        return record?.data;
+        if (!record) {
+            return null;
+        }
+
+        return record?.data as Unprocessed;
     }
 
-    async saveUnprocessed(data: Data) {
-        return StorageRecord.upsert({
+    async saveUnprocessed(data: Unprocessed) {
+        await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'Unprocessed',
@@ -261,7 +271,7 @@ export class SignalStorage {
     }
 
     async postgresUpdateUnprocessedAttempts(id: string, attempts: number) {
-        return StorageRecord.update({
+        await StorageRecord.update({
             'data.attempts': attempts,
         }, {
             where: {
@@ -284,22 +294,23 @@ export class SignalStorage {
         });
 
         if (!record) {
-            return StorageRecord.create({
+            await StorageRecord.create({
                 clientId: this.clientId,
                 tel:      this.tel,
                 type:     'Unprocessed',
                 id,
                 data:     { attempts },
             });
+            return;
         }
 
         if (!record.data) {
             record.data = {};
         }
 
-        record.data.attempts = attempts;
+        (record.data as Unprocessed).attempts = attempts;
 
-        return record.save();
+        await record.save();
     }
 
     // updates the 'attempts' property of the unprocessed message
@@ -307,8 +318,8 @@ export class SignalStorage {
         this.postgresUpdateUnprocessedAttempts :
         this.fallbackUpdateUnprocessedAttempts;
 
-    async updateUnprocessedWithData(id: string, data: Data) {
-        return StorageRecord.upsert({
+    async updateUnprocessedWithData(id: string, data: Unprocessed) {
+        await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'Unprocessed',
@@ -318,7 +329,7 @@ export class SignalStorage {
     }
 
     async removeUnprocessed(id: string) {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -329,7 +340,7 @@ export class SignalStorage {
     }
 
     async removeAllUnprocessed() {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -348,11 +359,11 @@ export class SignalStorage {
             }
         });
 
-        return records.map(record => record.data);
+        return records.map(record => record.data as Configuration);
     }
 
-    async createOrUpdateConfiguration(data: Data) {
-        return StorageRecord.upsert({
+    async createOrUpdateConfiguration(data: Configuration) {
+        await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'Configuration',
@@ -362,7 +373,7 @@ export class SignalStorage {
     }
 
     async removeConfigurationById(id: string) {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -373,7 +384,7 @@ export class SignalStorage {
     }
 
     async removeAllConfiguration() {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
@@ -384,7 +395,7 @@ export class SignalStorage {
 
     // ==== All ====
     async removeAll() {
-        return StorageRecord.destroy({
+        await StorageRecord.destroy({
             where: {
                 clientId: this.clientId,
                 tel:      this.tel,
