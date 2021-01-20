@@ -4,6 +4,7 @@ import { SCOPES } from './models/OauthClient';
 import * as oauthModel from './impls/oauth';
 import * as accountsController from './controllers/accountsController';
 import * as messagesController from './controllers/messagesController';
+import * as attachmentsController from './controllers/attachmentsController';
 
 const oauthServer = new OAuth2Server({
     model: oauthModel
@@ -67,3 +68,6 @@ routes.delete('/accounts/:tel',        auth('write:accounts'), handle(accountsCo
 
 // ==== Messages ====
 routes.post('/accounts/:tel/messages', auth('write:messages'), handle(messagesController.sendMessage));
+
+// ==== Attachments ====
+routes.get('/accounts/:tel/attachments/:id', auth('read:attachment'), handle(attachmentsController.getAttachment));

@@ -22,6 +22,7 @@ export const SCOPES = new Set<string>([
     'write:accounts',
     'read:messages',
     'write:messages',
+    'read:attachments',
 ]);
 
 export type GrantType = 'authorization_code'|'client_credentials'|'implicit'|'refresh_token'|'password';
