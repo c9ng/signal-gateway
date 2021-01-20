@@ -6,7 +6,7 @@ ARG TZ=Europe/Vienna
 ENV NODE_ENV=${NODE_ENV}
 ENV TZ=${TZ}
 
-#USER root
+USER root
 #RUN echo " ---> Installing Debian Packages" && \
 #    apt-get update -q -y && \
 #    apt-get install -q -y --no-install-recommends ...

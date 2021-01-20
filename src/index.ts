@@ -13,6 +13,7 @@ import {
 } from 'oauth2-server';
 import { HttpError } from './errors';
 import * as signalConnections from './connections';
+import { loadSeeds } from './seeds';
 
 const app = express();
 const server = http.createServer(app)
@@ -95,6 +96,13 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 main();
 
 async function main() {
+    try {
+        await loadSeeds();
+    } catch (error) {
+        console.error(error);
+        process.exit(1);
+    }
+
     console.info(`Starting API server (PID: ${process.pid})...`);
     try {
         await new Promise<void>((resolve, reject) => {

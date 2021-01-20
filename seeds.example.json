@@ -1,0 +1,19 @@
+{
+    "clients": [
+        {
+            "id": "77151de2-2058-447f-9fd9-0da65dc763f9",
+            "name": "Test Client",
+            "grants": ["client_credentials"],
+            "webhookUri": "http://dummyserver/webhook",
+            "webhookToken": "aa9d113c-d9fa-4fd3-8628-7f79a81b8bdf",
+            "webhookSecret": "0e1379be-c800-43c9-bff8-c4c57f1abf02",
+            "accounts": [
+                {
+                    "tel": "+4367612345",
+                    "name": "Test Account",
+                    "events": ["message", "verified", "error"]
+                }
+            ]
+        }
+    ]
+}
