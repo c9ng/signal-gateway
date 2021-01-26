@@ -1,9 +1,11 @@
 import { QueryInterface, DataTypes, Op, literal } from 'sequelize';
 import { NODE_ENV } from '../config/env';
 import * as db from '../config/db';
+import { quoteSqlName as q } from '../utils';
 
 const { INTEGER, TEXT, DATE, ENUM, ARRAY, UUID, JSON, JSONB } = DataTypes;
 const DIALECT = db[NODE_ENV].dialect;
+const TEXT_ARRAY = DIALECT === 'postgres' ? ARRAY(TEXT) : JSON;
 
 export async function up(query: QueryInterface) {
     await query.createTable('OauthClients', {
@@ -32,7 +34,7 @@ export async function up(query: QueryInterface) {
         },
 
         redirectUris: {
-            type: DIALECT === 'postgres' ? ARRAY(TEXT) : JSON,
+            type: TEXT_ARRAY,
             allowNull: true,
         },
 
@@ -107,7 +109,7 @@ export async function up(query: QueryInterface) {
         },
 
         scope: {
-            type: DIALECT === 'postgres' ? ARRAY(TEXT) : JSON,
+            type: TEXT_ARRAY,
             allowNull: false,
             defaultValue: [],
         },
@@ -167,7 +169,7 @@ export async function up(query: QueryInterface) {
         },
 
         scope: {
-            type: DIALECT === 'postgres' ? ARRAY(TEXT) : JSON,
+            type: TEXT_ARRAY,
             allowNull: false,
             defaultValue: [],
         },
@@ -181,7 +183,7 @@ export async function up(query: QueryInterface) {
         },
     });
 
-    await query.createTable('Account', {
+    await query.createTable('Accounts', {
         clientId: {
             type: UUID,
             allowNull: false,
@@ -209,11 +211,17 @@ export async function up(query: QueryInterface) {
             type: TEXT,
             allowNull: false,
         },
+
+        events: {
+            type: TEXT_ARRAY,
+            allowNull: false,
+            defaultValue: [],
+        },
     });
 
-    await query.addIndex('Account', ['clientId', 'name'], { unique: true });
+    await query.addIndex('Accounts', ['clientId', 'name'], { unique: true });
 
-    await query.createTable('Storage', {
+    await query.createTable('StorageRecords', {
         clientId: {
             type: UUID,
             allowNull: false,
@@ -253,6 +261,15 @@ export async function up(query: QueryInterface) {
             type: DIALECT === 'postgres' ? JSONB : JSON,
         },
     });
+
+    if (DIALECT !== 'sqlite') {
+        await query.sequelize.query(
+            `ALTER TABLE ${q('StorageRecords')}
+                ADD CONSTRAINT ${q('StorageRecordAccountFK')}
+                FOREIGN KEY (${q('clientId')}, ${q('tel')})
+                REFERENCES ${q('Accounts')} (${q('clientId')}, ${q('tel')});`
+        );
+    }
 }
 
 export async function down(query: QueryInterface) {

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import './lib/config';
 import { NODE_ENV } from './config/env';
 import OauthClient from './models/OauthClient';
+import { isUrl } from './utils';
 
 // npm run create:oauth:client --
 //      --name "Client Name"
@@ -15,6 +16,7 @@ import OauthClient from './models/OauthClient';
 
 async function main() {
     const argv = yargs.options({
+        id:                       { nargs: 1, type: 'string' },
         name:                     { nargs: 1, type: 'string', required: true },
         grant:                    { nargs: 1, type: 'string', required: true },
         'webhook-uri':            { nargs: 1, type: 'string' },
@@ -36,13 +38,24 @@ async function main() {
         argv['webhook-token'] ?? null;
     const webhookSecret = await OauthClient.generateSecret();
     const webhookUri = argv['webhook-uri'] ?? null;
+    const id = argv.id;
 
-    if (NODE_ENV === 'production' && webhookUri !== null && !webhookUri.startsWith('https:')) {
-        throw new Error(`Only HTTPS webhook URIs are allowed in production!`);
+    if (webhookUri !== null) {
+        if (!isUrl(webhookUri)) {
+            throw new Error(`Webhook URI is invalid!`);
+        }
+
+        if (NODE_ENV === 'production'&& !webhookUri.startsWith('https:')) {
+            throw new Error(`Only HTTPS webhook URIs are allowed in production!`);
+        }
+    }
+
+    if (id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        throw new Error(`Given ID is not a valid UUID!`);
     }
 
     const client = await OauthClient.create({
-        id: uuidv4(),
+        id: id || uuidv4(),
         name: argv.name,
         secretHash: await OauthClient.hashSecret(secret),
         grants: [ argv.grant ],

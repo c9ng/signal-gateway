@@ -1,8 +1,10 @@
-import { EventType } from '@throneless/libsignal-service';
+import { EventType, AccountManager } from '@throneless/libsignal-service';
 import { Request, Response } from 'express';
 import { Token } from 'oauth2-server';
 import { NotFound, BadRequest } from '../errors';
 import Account from '../models/Account';
+import { getOrCreateConnection, connect, disconnect, updateEvents } from '../connections';
+import { isEqualSets } from '../utils';
 
 function validateEvents(events: string[]): EventType[] {
     for (const event of events) {
@@ -29,7 +31,7 @@ function validateEvents(events: string[]): EventType[] {
 export async function createAccount (req: Request, res: Response) {
     const token = res.locals.oauthToken as Token;
 
-    let events: any = req.params.events;
+    let events: any = req.body.events;
 
     if (!events) {
         events = [];
@@ -44,10 +46,12 @@ export async function createAccount (req: Request, res: Response) {
 
     const account = await Account.create({
         clientId:  token.client.id,
-        tel:  req.params.tel,
-        name: req.params.name,
+        tel:  req.body.tel,
+        name: req.body.name,
         events,
     });
+
+    await connect(account);
 
     return res.json({
         account: {
@@ -105,8 +109,8 @@ export async function updateAccount (req: Request, res: Response) {
         throw new NotFound('Could not find account with given tel.');
     }
 
-    if ('events' in req.params) {
-        const { events } = req.params;
+    if ('events' in req.body) {
+        const events: any = req.body.event;
         if (!events) {
             account.events = [];
         } else if (!Array.isArray(events)) {
@@ -118,11 +122,13 @@ export async function updateAccount (req: Request, res: Response) {
         validateEvents(account.events);
     }
 
-    if ('name' in req.params) {
-        account.name = req.params.name;
+    const { name } = req.body;
+    if (typeof name === 'string') {
+        account.name = name;
     }
 
     await account.save();
+    await updateEvents(account);
 
     return res.json({
         account: {
@@ -145,14 +151,20 @@ export async function deleteAccount (req: Request, res: Response) {
     }
 
     await account.destroy();
+    await disconnect(account);
 
     return res.json({
         success: true
     });
 }
 
-export async function verifyAccount (req: Request, res: Response) {
+export async function requestSMSVerification (req: Request, res: Response) {
     const token = res.locals.oauthToken as Token;
+    const { password } = req.body;
+
+    if (typeof password !== 'string' || password.length === 0) {
+        throw new BadRequest('Parameter "password" is required.');
+    }
 
     const account = await Account.findOne({
         where: { clientId: token.client.id, tel: req.params.tel }
@@ -162,10 +174,59 @@ export async function verifyAccount (req: Request, res: Response) {
         throw new NotFound('Could not find account with given tel.');
     }
 
-    // TODO
-    throw new Error('not implemented');
+    const connection = await getOrCreateConnection(account);
+    const accountManager = new AccountManager(account.tel, password, connection.sender.store);
+    const result = await accountManager.requestSMSVerification();
 
-    return res.json({
-        success: true
+    return res.json(result);
+}
+
+export async function requestVoiceVerification (req: Request, res: Response) {
+    const token = res.locals.oauthToken as Token;
+    const { password } = req.body;
+
+    if (typeof password !== 'string' || password.length === 0) {
+        throw new BadRequest('Parameter "password" is required.');
+    }
+
+    const account = await Account.findOne({
+        where: { clientId: token.client.id, tel: req.params.tel }
     });
+
+    if (!account) {
+        throw new NotFound('Could not find account with given tel.');
+    }
+
+    const connection = await getOrCreateConnection(account);
+    const accountManager = new AccountManager(account.tel, password, connection.sender.store);
+    const result = await accountManager.requestVoiceVerification();
+
+    return res.json(result);
+}
+
+export async function registerSingleDevice (req: Request, res: Response) {
+    const token = res.locals.oauthToken as Token;
+    const { password, code } = req.body;
+
+    if (typeof password !== 'string' || password.length === 0) {
+        throw new BadRequest('Parameter "password" is required.');
+    }
+
+    if (typeof code !== 'string' || code.length === 0) {
+        throw new BadRequest('Parameter "code" is required.');
+    }
+
+    const account = await Account.findOne({
+        where: { clientId: token.client.id, tel: req.params.tel }
+    });
+
+    if (!account) {
+        throw new NotFound('Could not find account with given tel.');
+    }
+
+    const connection = await getOrCreateConnection(account);
+    const accountManager = new AccountManager(account.tel, password, connection.sender.store);
+    const result = await accountManager.registerSingleDevice(code);
+
+    return res.json(result);
 }

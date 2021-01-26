@@ -59,15 +59,17 @@ const handle = (handler: (req: Request, res: Response) => Promise<any>) =>
 routes.post('/oauth/token', obtainToken);
 
 // ==== Accounts ====
-routes.post(  '/accounts',             auth('write:accounts'), handle(accountsController.createAccount));
-routes.get(   '/accounts',             auth('read:accounts'),  handle(accountsController.getAccounts));
-routes.get(   '/accounts/:tel',        auth('read:accounts'),  handle(accountsController.getAccount));
-routes.post(  '/accounts/:tel/verify', auth('write:accounts'), handle(accountsController.verifyAccount));
-routes.patch( '/accounts/:tel',        auth('write:accounts'), handle(accountsController.updateAccount));
-routes.delete('/accounts/:tel',        auth('write:accounts'), handle(accountsController.deleteAccount));
+routes.post(  '/accounts',      auth('write:accounts'), handle(accountsController.createAccount));
+routes.get(   '/accounts',      auth('read:accounts'),  handle(accountsController.getAccounts));
+routes.get(   '/accounts/:tel', auth('read:accounts'),  handle(accountsController.getAccount));
+routes.patch( '/accounts/:tel', auth('write:accounts'), handle(accountsController.updateAccount));
+routes.delete('/accounts/:tel', auth('write:accounts'), handle(accountsController.deleteAccount));
+routes.post(  '/accounts/:tel/verify_sms',             auth('write:accounts'), handle(accountsController.requestSMSVerification));
+routes.post(  '/accounts/:tel/verify_voice',           auth('write:accounts'), handle(accountsController.requestVoiceVerification));
+routes.post(  '/accounts/:tel/register_single_device', auth('write:accounts'), handle(accountsController.registerSingleDevice));
 
 // ==== Messages ====
 routes.post('/accounts/:tel/messages', auth('write:messages'), handle(messagesController.sendMessage));
 
 // ==== Attachments ====
-routes.get('/accounts/:tel/attachments/:id', auth('read:attachment'), handle(attachmentsController.getAttachment));
+routes.get('/accounts/:tel/attachments/:id', auth('read:attachments'), handle(attachmentsController.getAttachment));

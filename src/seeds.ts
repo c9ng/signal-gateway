@@ -3,7 +3,8 @@ import { resolve } from 'path';
 import { sequelize } from './config';
 import OauthClient from './models/OauthClient';
 import Account from './models/Account';
-import { SEEDS_DIR } from './config/env';
+import { NODE_ENV, SEEDS_DIR } from './config/env';
+import { isUrl } from './utils';
 
 const MIN_SECRET_LENGTH = 16;
 
@@ -95,7 +96,7 @@ export async function loadSeeds(): Promise<void> {
                             throw new TypeError(`clients[${clientIndex}].accessTokenLifetime has illegal value: ${JSON.stringify(accessTokenLifetime)}`);
                         }
 
-                        if (webhookUri != null && (typeof webhookUri !== 'string' || !/^https?:\/\/[-az0-9\.]+[^\s]*/i.test(webhookUri))) {
+                        if (webhookUri != null && (typeof webhookUri !== 'string' || !isUrl(webhookUri))) {
                             throw new TypeError(`clients[${clientIndex}].webhookUri has illegal value: ${JSON.stringify(webhookUri)}`);
                         }
 
@@ -117,7 +118,7 @@ export async function loadSeeds(): Promise<void> {
 
                         await OauthClient.create({
                             id: clientId,
-                            secretHash: OauthClient.hashSecret(secret),
+                            secretHash: await OauthClient.hashSecret(secret),
                             name,
                             grants,
                             accessTokenLifetime,
@@ -184,6 +185,9 @@ export async function loadSeeds(): Promise<void> {
                         console.info(`client[${clientIndex}].webhookSecret: ${webhookSecret}`);
                     }
                 } catch (error) {
+                    if (NODE_ENV === 'development') {
+                        console.error(error);
+                    }
                     throw new TypeError(`Error loading DB seeds from file ${filename}: ${error.message}`);
                 }
             }

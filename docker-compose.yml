@@ -1,0 +1,12 @@
+version: '3.1'
+services:
+  signalgw:
+    build:
+      context: .
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - ${PORT:-8080}:8080
+    volumes:
+      - ./data:/var/lib/signal-gateway
+      - ${SEEDS_DIR:-./data/seeds}:/var/lib/signal-gateway-seeds

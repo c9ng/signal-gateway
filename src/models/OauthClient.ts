@@ -1,6 +1,5 @@
 import { randomBytes, scrypt, pbkdf2, timingSafeEqual } from 'crypto';
 import { DataType, Model, Column, Table, AllowNull, PrimaryKey, Default, Comment } from 'sequelize-typescript';
-import { literal } from 'sequelize';
 import {
     NODE_ENV,
     SECRET_BYTE_COUNT,
@@ -14,6 +13,10 @@ import {
     SECRET_HASH_ALGORITHM,
 } from '../config/env';
 import * as db from '../config/db';
+import {
+    encodeUrlsafeBase64,
+    decodeUrlsafeBase64
+} from '../utils';
 
 const DIALECT = db[NODE_ENV].dialect;
 
@@ -80,7 +83,7 @@ export default class OauthClient extends Model {
                 if (err) {
                     return reject(err);
                 }
-                resolve(bytes.toString('base64'));
+                resolve(encodeUrlsafeBase64(bytes));
             })
         });
     }
@@ -92,7 +95,7 @@ export default class OauthClient extends Model {
                 if (err) {
                     return reject(err);
                 }
-                const saltStr = saltBytes.toString('base64');
+                const saltStr = encodeUrlsafeBase64(saltBytes);
 
                 switch (SECRET_HASH_ALGORITHM) {
                     case 'scrypt':
@@ -104,7 +107,7 @@ export default class OauthClient extends Model {
                             if (err) {
                                 return reject(err);
                             }
-                            const keyStr = derivedKey.toString('base64');
+                            const keyStr = encodeUrlsafeBase64(derivedKey);
                             resolve(`scrypt.${SCRYPT_COST}.${SCRYPT_BLOCK_SIZE}.${SCRYPT_PARALLELIZATION}.${saltStr}.${keyStr}`);
                         });
                         break;
@@ -114,7 +117,7 @@ export default class OauthClient extends Model {
                             if (err) {
                                 return reject(err);
                             }
-                            const keyStr = derivedKey.toString('base64');
+                            const keyStr = encodeUrlsafeBase64(derivedKey);
                             resolve(`pbkdf2.${PBKDF2_ITERATIONS}.${PBKDF2_DIGEST}.${saltStr}.${keyStr}`);
                         });
                         break;
@@ -134,8 +137,8 @@ export default class OauthClient extends Model {
                 const cost            = +hash[1];
                 const blockSize       = +hash[2];
                 const parallelization = +hash[3];
-                const salt = Buffer.from(hash[4], 'base64');
-                const key  = Buffer.from(hash[5], 'base64');
+                const salt = decodeUrlsafeBase64(hash[4]);
+                const key  = decodeUrlsafeBase64(hash[5]);
 
                 return new Promise((resolve, reject) => {
                     scrypt(secretBytes, salt, key.length, { cost, blockSize, parallelization }, (err, derivedKey) => {
@@ -151,8 +154,8 @@ export default class OauthClient extends Model {
             {
                 const iterations = +hash[1];
                 const digest     =  hash[2];
-                const salt = Buffer.from(hash[3], 'base64');
-                const key  = Buffer.from(hash[4], 'base64');
+                const salt = decodeUrlsafeBase64(hash[3]);
+                const key  = decodeUrlsafeBase64(hash[4]);
 
                 return new Promise((resolve, reject) => {
                     pbkdf2(secretBytes, salt, iterations, key.length, digest, (err, derivedKey) => {
@@ -165,7 +168,7 @@ export default class OauthClient extends Model {
             }
 
             default:
-                throw new Error(`Unknown password hashing algorith: ${algo}`);
+                throw new Error(`Unknown password hashing algorithm: ${algo}`);
         }
     }
 

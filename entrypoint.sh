@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 echo " ---> Running Migrations"
 npx sequelize db:migrate

@@ -20,8 +20,8 @@ export default class StorageRecord extends Model {
     @Column(DataType.TEXT)
     tel!: string;
 
-    @BelongsTo(() => Account)
-    account!: Account;
+//    @BelongsTo(() => Account)
+//    account!: Account;
 
     @PrimaryKey
     @AllowNull(false)

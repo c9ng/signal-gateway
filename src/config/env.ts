@@ -79,7 +79,7 @@ export const {
 
     const PORT = +(process.env.PORT || 8080);
     if (PORT <= 0 || PORT > 65535 || isNaN(PORT)) {
-        throw new Error(`Illegal PORT: ${PORT}`);
+        throw new Error(`Illegal PORT: ${process.env.PORT}`);
     }
 
     let { SECRET_HASH_ALGORITHM } = process.env;

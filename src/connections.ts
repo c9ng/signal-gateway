@@ -4,17 +4,20 @@ import {
     VerifiedEvent, SentEvent, DeliveryEvent, ReadEvent, ErrorEvent,
     CloseEvent,
     Event,
+    EventType,
 } from '@throneless/libsignal-service';
+import { NODE_ENV } from './config/env';
 import { SignalStorage } from './impls/signal';
 import Account from './models/Account';
 import OauthClient from './models/OauthClient';
 import { deliverWebhook } from './webhook';
 
 export interface Connection {
-    clientId: string;
-    tel: string;
-    sender: MessageSender;
-    receiver: MessageReceiver;
+    readonly clientId: string;
+    readonly tel: string;
+    readonly sender: MessageSender;
+    readonly receiver: MessageReceiver;
+    readonly listeners: Map<EventType, (event: Event) => Promise<void>>;
 }
 
 const connections = new Map<string, Connection>();
@@ -38,6 +41,9 @@ async function deliverEvent(clientId: string, tel: string, event: Event, payload
 
         // TODO: error logging?
         if (client?.webhookUri) {
+            if (NODE_ENV === 'development') {
+                console.log(`Sending webhook to ${client.webhookUri}:`, payload);
+            }
             await deliverWebhook(client.webhookUri, JSON.stringify(payload), {
                 secret: client.webhookSecret,
                 token: client.webhookToken,
@@ -97,13 +103,47 @@ export async function connect(account: Account): Promise<Connection> {
     const protocolStore = new ProtocolStore(storeBackend);
     const sender = new MessageSender(protocolStore);
     const receiver = new MessageReceiver();
+    const listeners = new Map<EventType, (event: Event) => Promise<void>>();
 
-    connection = { clientId, tel, sender, receiver };
+    connection = { clientId, tel, sender, receiver, listeners };
     connections.set(key, connection);
 
     for (const eventType of new Set(account.events)) {
         // TypeScript is not intelligent enough to see this is fine:
-        (receiver as any).addEventListener(eventType, HANDLERS[eventType](clientId, tel));
+        const listener = HANDLERS[eventType](clientId, tel);
+        listeners.set(eventType, listener as any);
+        (receiver as any).addEventListener(eventType, listener);
+    }
+
+    return connection;
+}
+
+export async function updateEvents(account: Account): Promise<Connection> {
+    const { clientId, tel } = account;
+    const key = `${clientId}/${tel}`;
+    let connection = connections.get(key);
+
+    if (!connection) {
+        return connect(account);
+    }
+
+    const { listeners, receiver } = connection;
+    const events = new Set(account.events);
+
+    for (const [eventType, listener] of [...listeners]) {
+        if (!events.has(eventType)) {
+            (receiver as any).removeEventListener(eventType, listener);
+            listeners.delete(eventType);
+        }
+    }
+
+    for (const eventType of events) {
+        if (!connection.listeners.has(eventType)) {
+            // TypeScript is not intelligent enough to see this is fine:
+            const listener = HANDLERS[eventType](clientId, tel);
+            listeners.set(eventType, listener as any);
+            (receiver as any).addEventListener(eventType, listener);
+        }
     }
 
     return connection;

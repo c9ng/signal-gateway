@@ -72,8 +72,16 @@ export class ProtocolStore {
 }
 
 export class AccountManager {
+    readonly username: string;
+    readonly password: string
+    readonly store: ProtocolStore;
+
+    constructor(username: string, password: string, store: ProtocolStore);
+
     registerSingleDevice(code: string): Promise<any>; // TODO
     requestSMSVerification(): Promise<any>; // TODO
+    requestVoiceVerification(): Promise<any>; // TODO
+    registerSecondDevice(setProvisioningUrl: string, confirmNumber: string, progressCallback?: () => void): Promise<any>; // TODO
 }
 
 export interface OutMessage {
