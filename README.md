@@ -8,14 +8,19 @@ Run this in your local network and don't make it accessible by the internet.
 TODO
 ----
 
-* [ ] docker setup
-* [ ] basic express js app
-* [ ] oauth access control
+* [x] docker setup
+* [x] basic express js app
+* [x] oauth access control
+* [ ] verify devices
+* [ ] send messages
+* [ ] receive messages
+* [ ] download attachments
 * [ ] tests
 * [ ] example client
 * [ ] README with basic usage description
 * [ ] logging
 * [ ] OpenAPI api documentation
+* [ ] add license header to all files
 * [ ] maybe publish docker image?
 
 License
