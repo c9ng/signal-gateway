@@ -27,6 +27,8 @@ export interface Configuration {
 }
 
 export interface ProtocolStoreBackend {
+    pollDelay?: number;
+
     getAllIdentityKeys(): Promise<IdentityKey[]>;
     createOrUpdateIdentityKey(data: IdentityKey): Promise<void>;
     removeIdentityKeyById(id: string): Promise<void>;

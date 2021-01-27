@@ -1,9 +1,12 @@
 export abstract class BaseError extends Error {
-    constructor(message?: string) {
+    readonly cause?: Error;
+
+    constructor(message?: string, cause?: Error) {
         super(message);
 
         this.name = this.constructor.name;
         Error.captureStackTrace(this, this.constructor);
+        this.cause = cause;
     }
 }
 
@@ -17,8 +20,8 @@ const HTTP_ERROR_MAP: { [code: number]: string } = Object.assign(Object.create(n
 export class HttpError extends BaseError {
     readonly status: number;
 
-    constructor(status: number, message?: string) {
-        super(message);
+    constructor(status: number, message?: string, cause?: Error) {
+        super(message, cause);
         this.status = status;
     }
 
@@ -31,25 +34,25 @@ export class HttpError extends BaseError {
 }
 
 export class Forbidden extends HttpError {
-    constructor(message?: string) {
-        super(403, message);
+    constructor(message?: string, cause?: Error) {
+        super(403, message, cause);
     }
 }
 
 export class NotFound extends HttpError {
-    constructor(message?: string) {
-        super(404, message);
+    constructor(message?: string, cause?: Error) {
+        super(404, message, cause);
     }
 }
 
 export class InternalError extends HttpError {
-    constructor(message?: string) {
-        super(501, message);
+    constructor(message?: string, cause?: Error) {
+        super(501, message, cause);
     }
 }
 
 export class BadRequest extends HttpError {
-    constructor(message?: string) {
-        super(400, message);
+    constructor(message?: string, cause?: Error) {
+        super(400, message, cause);
     }
 }

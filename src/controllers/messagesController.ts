@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Token } from 'oauth2-server';
-import { NotFound } from '../errors';
+import { NotFound, HttpError } from '../errors';
 import Account from '../models/Account';
 import { getOrCreateConnection } from '../connections';
 
@@ -18,7 +18,15 @@ export async function sendMessage (req: Request, res: Response) {
     const connection = await getOrCreateConnection(account);
 
     // TODO
-    const result = await connection.sender.sendMessage(req.body);
+    let result;
+    try {
+        result = await connection.sender.sendMessage(req.body);
+    } catch (error) {
+        if (error.name === 'HTTPError') {
+            throw new HttpError(error.code, error.message, error);
+        }
+        throw error;
+    }
 
     return res.json({
         ...result,

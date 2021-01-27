@@ -1,10 +1,9 @@
 import { EventType, AccountManager } from '@throneless/libsignal-service';
 import { Request, Response } from 'express';
 import { Token } from 'oauth2-server';
-import { NotFound, BadRequest } from '../errors';
+import { NotFound, BadRequest, HttpError, Forbidden } from '../errors';
 import Account from '../models/Account';
 import { getOrCreateConnection, connect, disconnect, updateEvents } from '../connections';
-import { isEqualSets } from '../utils';
 
 function validateEvents(events: string[]): EventType[] {
     for (const event of events) {
@@ -153,9 +152,7 @@ export async function deleteAccount (req: Request, res: Response) {
     await account.destroy();
     await disconnect(account);
 
-    return res.json({
-        success: true
-    });
+    return res.json({success: true});
 }
 
 export async function requestSMSVerification (req: Request, res: Response) {
@@ -176,9 +173,16 @@ export async function requestSMSVerification (req: Request, res: Response) {
 
     const connection = await getOrCreateConnection(account);
     const accountManager = new AccountManager(account.tel, password, connection.sender.store);
-    const result = await accountManager.requestSMSVerification();
+    try {
+        await accountManager.requestSMSVerification();
+    } catch (error) {
+        if (error.name === 'HTTPError') {
+            throw new HttpError(error.code, error.message, error);
+        }
+        throw error;
+    }
 
-    return res.json(result);
+    return res.json({success: true});
 }
 
 export async function requestVoiceVerification (req: Request, res: Response) {
@@ -199,9 +203,17 @@ export async function requestVoiceVerification (req: Request, res: Response) {
 
     const connection = await getOrCreateConnection(account);
     const accountManager = new AccountManager(account.tel, password, connection.sender.store);
-    const result = await accountManager.requestVoiceVerification();
 
-    return res.json(result);
+    try {
+        await accountManager.requestVoiceVerification();
+    } catch (error) {
+        if (error.name === 'HTTPError') {
+            throw new HttpError(error.code, error.message, error);
+        }
+        throw error;
+    }
+
+    return res.json({success: true});
 }
 
 export async function registerSingleDevice (req: Request, res: Response) {
@@ -226,7 +238,18 @@ export async function registerSingleDevice (req: Request, res: Response) {
 
     const connection = await getOrCreateConnection(account);
     const accountManager = new AccountManager(account.tel, password, connection.sender.store);
-    const result = await accountManager.registerSingleDevice(code);
 
-    return res.json(result);
+    try {
+        await accountManager.registerSingleDevice(code);
+    } catch (error) {
+        if (error.name === 'HTTPError') {
+            if (error.code === 403) {
+                throw new Forbidden('Invalid code, please try again.', error);
+            }
+            throw new HttpError(error.code, error.message, error);
+        }
+        throw error;
+    }
+
+    return res.json({success: true});
 }

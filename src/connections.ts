@@ -101,6 +101,8 @@ export async function connect(account: Account): Promise<Connection> {
 
     const storeBackend = new SignalStorage(account.clientId, account.tel);
     const protocolStore = new ProtocolStore(storeBackend);
+    await protocolStore.load();
+
     const sender = new MessageSender(protocolStore);
     const receiver = new MessageReceiver();
     const listeners = new Map<EventType, (event: Event) => Promise<void>>();
