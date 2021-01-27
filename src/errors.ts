@@ -14,7 +14,8 @@ const HTTP_ERROR_MAP: { [code: number]: string } = Object.assign(Object.create(n
     400: 'validation_failed',
     403: 'forbidden',
     404: 'not_found',
-    501: 'internal_error',
+    500: 'internal_error',
+    501: 'not_implemented',
 });
 
 export class HttpError extends BaseError {
@@ -47,10 +48,15 @@ export class NotFound extends HttpError {
 
 export class InternalError extends HttpError {
     constructor(message?: string, cause?: Error) {
-        super(501, message, cause);
+        super(500, message, cause);
     }
 }
 
+export class NotImplemented extends HttpError {
+    constructor(message?: string, cause?: Error) {
+        super(501, message, cause);
+    }
+}
 export class BadRequest extends HttpError {
     constructor(message?: string, cause?: Error) {
         super(400, message, cause);

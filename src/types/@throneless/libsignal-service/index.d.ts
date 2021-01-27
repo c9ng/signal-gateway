@@ -66,11 +66,24 @@ export interface ProtocolStoreBackend {
     removeAll(): Promise<void>;
 }
 
+export interface Group {
+    readonly id: string;
+    readonly numbers: string[];
+}
+
 export class ProtocolStore {
     readonly storage: ProtocolStoreBackend;
 
     constructor(storage: ProtocolStoreBackend);
     load(): Promise<void>;
+
+    hasGroups(): boolean;
+    createNewGroup(groupId: string|undefined|null, numbers: string[]): Promise<Group>;
+    getGroup(groupId: string): Promise<Group|undefined>;
+    getGroupNumbers(groupId: string): Promise<string[]|undefined>;
+
+    getNumber(): Promise<string>;
+    getUuid(): Promise<string>;
 }
 
 export class AccountManager {
@@ -80,20 +93,40 @@ export class AccountManager {
 
     constructor(username: string, password: string, store: ProtocolStore);
 
-    registerSingleDevice(code: string): Promise<any>; // TODO
-    requestSMSVerification(): Promise<any>; // TODO
-    requestVoiceVerification(): Promise<any>; // TODO
-    registerSecondDevice(setProvisioningUrl: string, confirmNumber: string, progressCallback?: () => void): Promise<any>; // TODO
+    registerSingleDevice(code: string): Promise<any>;
+    requestSMSVerification(): Promise<any>;
+    requestVoiceVerification(): Promise<any>;
+    registerSecondDevice(setProvisioningUrl: string, confirmNumber: string, progressCallback?: () => void): Promise<any>;
 }
 
 export interface OutMessage {
     body?: string;
     attachments?: Attachment[];
-    quote?: string; // TODO
-    preview?: string; // TODO
-    sticker?: string; // TODO
-    reaction?: string; // TODO
-    expireTimer?: string; // TODO
+    quote?:       string; // TODO: whats the actual type?
+    preview?:     string; // TODO: whats the actual type?
+    sticker?:     string; // TODO: whats the actual type?
+    reaction?:    string; // TODO: whats the actual type?
+    expireTimer?: string|number; // TODO: maybe number? dunno
+}
+
+export interface OutMessageToRecipients extends OutMessage {
+    recipients: string[];
+    group?: {
+        id: string,
+        type: number,
+    };
+}
+
+export interface OutMessageToIdentifier extends OutMessage {
+    identifier: string;
+}
+
+export interface OutMessageToNumber extends OutMessage {
+    number: string;
+}
+
+export interface OutMessageToGroup extends OutMessage {
+    groupId: string
 }
 
 export interface SendMessageOptions {
@@ -129,10 +162,10 @@ export class MessageSender {
     getProfile(number: string, options?: { accessKey: string }): Promise<Profile>;
     getAvatar(path: string): Promise<Avatar>;
 
-    sendMessage(message: OutMessage & { recipients: string[] }, options?: SendMessageOptions): Promise<SendMessageResult>
-    sendMessageToIdentifier(message: OutMessage & { identifier: string }, options?: SendMessageOptions): Promise<SendMessageResult>;
-    sendMessageToNumber(message: OutMessage & { number: string }, options?: SendMessageOptions): Promise<SendMessageResult>;
-    sendMessageToGroup(message: OutMessage & { groupId: string }, options?: SendMessageOptions): Promise<SendMessageResult>;
+    sendMessage(message: OutMessageToRecipients, options?: SendMessageOptions): Promise<SendMessageResult>
+    sendMessageToIdentifier(message: OutMessageToIdentifier, options?: SendMessageOptions): Promise<SendMessageResult>;
+    sendMessageToNumber(message: OutMessageToNumber, options?: SendMessageOptions): Promise<SendMessageResult>;
+    sendMessageToGroup(message: OutMessageToGroup, options?: SendMessageOptions): Promise<SendMessageResult>;
 
     resetSession(identifier: string, timestamp: string, options?: { /* TODO */ }): Promise<void>;
 
