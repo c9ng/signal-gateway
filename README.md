@@ -37,6 +37,9 @@ Fix Bugs
       session version undefined"
 * [ ] Graceful shutdown doesn't work. Not geting SIGINT for some reason, even
       though the server *is* PID 1 in the container.
+      Turns out it does work, but not via Ctrl+C in the docker-compose
+      foreground process, only when using `docker stop signalgw_signalgw_1`.
+      What's up with docker?
 * [ ] Getting error event "Unknown message type" all the time
 
 License
