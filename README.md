@@ -16,6 +16,7 @@ TODO
 * [x] receive text messages
 * [x] send attachment
 * [x] download attachments (might change how I do that)
+* [ ] get user profile (name and avatar image)
 * [ ] better errors?
 * [ ] tests
 * [ ] example client
