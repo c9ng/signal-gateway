@@ -9,7 +9,7 @@ import {
 
 const DIALECT = db[NODE_ENV].dialect;
 
-const debug = NODE_ENV === 'development' ?
+const debug = false && NODE_ENV === 'development' ?
     (...args: any[]) => console.info(...args) :
     (...args: any[]) => {};
 

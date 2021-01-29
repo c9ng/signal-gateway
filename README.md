@@ -12,9 +12,10 @@ TODO
 * [x] basic express js app
 * [x] oauth access control
 * [x] verify devices
-* [ ] send messages
-* [ ] receive messages
-* [ ] download attachments
+* [x] send text messages
+* [x] receive text messages
+* [x] send attachment
+* [x] download attachments (might change how I do that)
 * [ ] better errors?
 * [ ] tests
 * [ ] example client
@@ -35,6 +36,7 @@ Fix Bugs
       session version undefined"
 * [ ] Graceful shutdown doesn't work. Not geting SIGINT for some reason, even
       though the server *is* PID 1 in the container.
+* [ ] Getting error event "Unknown message type" all the time
 
 License
 -------

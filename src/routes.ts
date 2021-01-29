@@ -72,4 +72,4 @@ routes.post(  '/accounts/:tel/register_single_device', auth('write:accounts'), h
 routes.post('/accounts/:tel/messages', auth('write:messages'), handle(messagesController.sendMessage));
 
 // ==== Attachments ====
-routes.get('/accounts/:tel/attachments/:id', auth('read:attachments'), handle(attachmentsController.getAttachment));
+routes.post('/accounts/:tel/attachment', auth('read:attachments'), handle(attachmentsController.getAttachment));

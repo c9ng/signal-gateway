@@ -222,10 +222,10 @@ export class AccountManager {
 export interface OutMessage {
     body?: string;
     attachments?: Attachment[];
-    quote?:       string; // TODO: whats the actual type?
-    preview?:     string; // TODO: whats the actual type?
-    sticker?:     string; // TODO: whats the actual type?
-    reaction?:    string; // TODO: whats the actual type?
+    quote?:       string;   // TODO: whats the actual type?
+    preview?:     string[]; // TODO: whats the actual type? array of something.
+    sticker?:     string;   // TODO: whats the actual type?
+    reaction?:    string;   // TODO: whats the actual type?
     expireTimer?: string|number; // TODO: maybe number? dunno
 }
 
@@ -270,6 +270,7 @@ export interface SendMessageResult {
     failoverIdentifiers: string[];
     errors: errors.OutgoingMessageError[];
     unidentifiedDeliveries: string[];
+    dataMessage: Buffer;
 }
 
 export class MessageSender {
@@ -312,16 +313,23 @@ export interface Attachment {
     height?: number;
     data: ArrayBuffer;
     size: number;
-    flags?: string|number; // TODO
+    flags?: number;
+    caption?: string; // not sure
 }
 
 export interface InAttachment {
     cdnId?: string;
     cdnKey?: string;
-    cdnNumber?: string;
+    cdnNumber?: number;
     key: string;
     digest: string;
     size: number;
+    fileName: string;
+    contentType?: string;
+    flags?: number;
+    caption?: string;
+    blurHash?: string;
+    uploadTimestamp: any; // "Long"?
 }
 
 export interface AttachmentPointer {
@@ -333,17 +341,28 @@ export interface AttachmentPointer {
     data: ArrayBuffer;
 }
 
+export interface MessageEventData {
+    source: string;
+    sourceUuid: string;
+    sourceDevice: number;
+    timestamp: number;
+    receivedAt?: number;
+    unidentifiedDeliveryReceived?: any; // TODO
+    message: {
+        attachments: InAttachment[];
+        body: string;
+        contact: string[]; // TODO: array of something?
+        preview: string[]; // TODO: array of something?
+        profileKey: Uint8Array;
+    };
+    group?: {
+        id: string;
+    };
+}
+
 export interface MessageEvent extends Event {
     readonly type: 'message';
-    readonly data: {
-        message: {
-            attachemnts: InAttachment[]
-        },
-        group?: {
-            id: string
-        },
-        body: string
-    }
+    readonly data: MessageEventData;
 }
 
 export interface ConfigurationEvent extends Event {

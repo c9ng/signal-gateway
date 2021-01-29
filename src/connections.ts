@@ -5,12 +5,14 @@ import {
     CloseEvent, ReconnectEvent,
     Event,
     EventType,
+    MessageEventData,
 } from '@throneless/libsignal-service';
 import { NODE_ENV } from './config/env';
 import { SignalStorage } from './impls/signal';
 import Account from './models/Account';
 import OauthClient from './models/OauthClient';
 import { deliverWebhook } from './webhook';
+import { inspect } from 'util';
 
 export interface Connection {
     readonly clientId: string;
@@ -26,11 +28,84 @@ async function disconnectInternal(connection: Connection): Promise<void> {
     await connection.receiver.close();
 }
 
+// TODO: move payload handling and webhook delivery in own file?
+
 interface Payload {
     // TODO
     receiver: string;
     type: string;
     payload?: any;
+}
+
+interface StrippedInAttachment {
+    cdnId?: string;
+    cdnKey?: string;
+    cdnNumber?: number;
+    key: string;
+    digest: string;
+    size: number;
+    fileName: string;
+    contentType?: string;
+    flags?: number;
+    caption?: string;
+    blurHash?: string;
+    uploadTimestamp: number;
+}
+
+interface StrippedMessageEventData {
+    source: string;
+    sourceUuid: string;
+    sourceDevice: number;
+    timestamp: number;
+    receivedAt?: number;
+    message: {
+        attachments: StrippedInAttachment[];
+        body: string;
+        contact: string[]; // TODO: array of something?
+        preview: string[]; // TODO: array of something?
+    };
+    group?: {
+        id: string;
+    };
+}
+
+// just to make sure thare are no weird types that crash JSON.stringify()
+// or that would be huge arrays of nubmers (Buffer)
+function convertMessage(data: MessageEventData): StrippedMessageEventData {
+    const {
+        source, sourceUuid, sourceDevice, timestamp,
+        receivedAt, message, group,
+    } = data;
+
+    const {
+        attachments,
+        body,
+        contact,
+        preview,
+    } = message;
+
+    return {
+        source,
+        sourceUuid,
+        sourceDevice,
+        timestamp: Number(timestamp),
+        receivedAt,
+        message: {
+            attachments: attachments.map(({
+                cdnId, cdnKey, cdnNumber, key, digest, size,
+                fileName, contentType, flags, caption, blurHash,
+                uploadTimestamp
+            }) =>({
+                cdnId, cdnKey, cdnNumber, key, digest, size,
+                fileName, contentType, flags, caption, blurHash,
+                uploadTimestamp: Number(uploadTimestamp),
+            })),
+            body,
+            contact,
+            preview,
+        },
+        group,
+    };
 }
 
 async function deliverEvent(clientId: string, tel: string, event: Event, payload: Payload): Promise<void> {
@@ -43,7 +118,8 @@ async function deliverEvent(clientId: string, tel: string, event: Event, payload
             console.error(`Tried to deliver webhook to client ${clientId} and tel ${tel}, but client is (no longer?) in database.`);
         } else {
             if (NODE_ENV === 'development') {
-                console.log(`Sending webhook to ${client.webhookUri || '/dev/null'}: ${JSON.stringify(payload, null, 2)}`);
+                console.log(`Sending webhook to ${client.webhookUri || '/dev/null'}:`,
+                    payload.type === 'message' ? inspect(payload, { depth: null }) : payload);
             }
             if (client.webhookUri) {
                 await deliverWebhook(client.webhookUri, JSON.stringify(payload), {
@@ -57,14 +133,15 @@ async function deliverEvent(clientId: string, tel: string, event: Event, payload
     } catch (error) {
         console.error(`Webhook delivery to ${tel} for client ${clientId} failed:`, error);
         if (NODE_ENV === 'development') {
-            console.error(`Webhook payload was:`, payload);
+            console.error(`Webhook payload was:`,
+                payload.type === 'message' ? inspect(payload, { depth: null }) : payload);
         }
     }
 }
 
 const HANDLERS = {
     message: (clientId: string, tel: string) => async (event: MessageEvent) =>
-        deliverEvent(clientId, tel, event, { receiver: tel, type: event.type, payload: event.data }),
+        deliverEvent(clientId, tel, event, { receiver: tel, type: event.type, payload: convertMessage(event.data) }),
 
     configuration: (clientId: string, tel: string) => async (event: ConfigurationEvent) =>
         deliverEvent(clientId, tel, event, { receiver: tel, type: event.type, payload: event.configuration }),

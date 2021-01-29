@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import { Token } from 'oauth2-server';
-import { NotFound, HttpError, NotImplemented, BadRequest } from '../errors';
+import { NotFound, HttpError, BadRequest } from '../errors';
 import Account from '../models/Account';
 import { getOrCreateConnection } from '../connections';
 import { Attachment, OutMessageToRecipients } from '@throneless/libsignal-service';
 
-const MESSAGE_STRING_KEYS: Array<'body'|'quote'|'preview'|'sticker'|'reaction'> =
-    ['body', 'quote', 'preview', 'sticker', 'reaction'];
+const MESSAGE_STRING_KEYS: Array<'body'|'quote'|'sticker'|'reaction'> =
+    ['body', 'quote', 'sticker', 'reaction'];
 
 const GROUP_UNKNOWN = 0;
 const GROUP_UPDATE  = 1;
@@ -26,6 +26,7 @@ function convertMessage(data: any): OutMessageToRecipients {
         recipients,
         attachments,
         expireTimer,
+        preview,
     } = data;
 
     if (!Array.isArray(recipients)) {
@@ -49,6 +50,15 @@ function convertMessage(data: any): OutMessageToRecipients {
         }
     }
 
+    if (preview !== undefined) {
+        if (!Array.isArray(preview)) {
+            throw new BadRequest(`Illegal message preview: ${JSON.stringify(preview)}`);
+        }
+
+        // TODO: more validation once I find out what the exact type of this is meant to be
+        message.preview = preview;
+    }
+
     if (attachments !== undefined) {
         if (!Array.isArray(attachments)) {
             throw new BadRequest(`Illegal message attachments: ${JSON.stringify(attachments)}`);
@@ -68,6 +78,7 @@ function convertMessage(data: any): OutMessageToRecipients {
                 data,
                 size,
                 flags,
+                caption,
             } = attachment;
 
             if (fileName === undefined) {
@@ -126,10 +137,17 @@ function convertMessage(data: any): OutMessageToRecipients {
             }
 
             if (flags !== undefined) {
-                if (typeof flags !== 'number' && typeof flags !== 'string') {
+                if (typeof flags !== 'number') {
                     throw new BadRequest(`Illegal attachment flags: ${JSON.stringify(flags)}`);
                 }
                 validAttachment.flags = flags;
+            }
+
+            if (caption !== undefined) {
+                if (typeof caption !== 'string') {
+                    throw new BadRequest(`Illegal attachment caption: ${JSON.stringify(caption)}`);
+                }
+                validAttachment.caption = caption;
             }
 
             message.attachments.push(validAttachment);
@@ -172,6 +190,7 @@ export async function sendMessage (req: Request, res: Response) {
 
     return res.json({
         ...result,
+        dataMessage: undefined,
         errors: result.errors.map(error => ({
             name: error.name,
             message: error.message,
@@ -242,6 +261,7 @@ export async function sendMessageToGroup (req: Request, res: Response) {
 
     return res.json({
         ...result,
+        dataMessage: undefined,
         errors: result.errors.map(error => ({
             name: error.name,
             message: error.message,
