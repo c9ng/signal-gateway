@@ -33,6 +33,8 @@ Fix Bugs
 
 * [ ] "V1 session storage migration error: registrationId undefined for open
       session version undefined"
+* [ ] Graceful shutdown doesn't work. Not geting SIGINT for some reason, even
+      though the server *is* PID 1 in the container.
 
 License
 -------
