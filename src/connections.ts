@@ -39,15 +39,18 @@ async function deliverEvent(clientId: string, tel: string, event: Event, payload
             where: { id: clientId }
         });
 
-        // TODO: error logging?
-        if (client?.webhookUri) {
+        if (!client) {
+            console.error(`Tried to deliver webhook to client ${clientId} and tel ${tel}, but client is (no longer?) in database.`);
+        } else {
             if (NODE_ENV === 'development') {
-                console.log(`Sending webhook to ${client.webhookUri}:`, payload);
+                console.log(`Sending webhook to ${client.webhookUri || '/dev/null'}: ${JSON.stringify(payload, null, 2)}`);
             }
-            await deliverWebhook(client.webhookUri, JSON.stringify(payload), {
-                secret: client.webhookSecret,
-                token: client.webhookToken,
-            });
+            if (client.webhookUri) {
+                await deliverWebhook(client.webhookUri, JSON.stringify(payload), {
+                    secret: client.webhookSecret,
+                    token: client.webhookToken,
+                });
+            }
         }
 
         event.confirm();

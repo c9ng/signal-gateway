@@ -91,15 +91,30 @@ const storeSignedPreKey = (data: SignedPreKey) => ({
     privateKey: arrayBufferToBase64(data.privateKey),
 });
 
-const loadUnprocessed = ({data}: StorageRecord) => ({
-    ...data,
-    envelope: base64ToUint8Array(data.envelope),
-} as Unprocessed);
+const loadUnprocessed = ({data}: StorageRecord) => {
+    const { envelope } = data;
 
-const storeUnprocessed = (data: Unprocessed) => ({
-    ...data,
-    envelope: uint8ArrayToBase64(data.envelope),
-});
+    if (typeof envelope === 'string') {
+        return {
+            ...data,
+            envelope: base64ToUint8Array(envelope),
+        } as Unprocessed;
+    }
+    return data as Unprocessed;
+};
+
+const storeUnprocessed = (data: Unprocessed) => {
+    const { envelope } = data;
+
+    if (envelope instanceof Uint8Array) {
+        return {
+            ...data,
+            envelope: uint8ArrayToBase64(envelope)
+        };
+    }
+
+    return data;
+};
 
 const loadConfiguration = ({data}: StorageRecord) => {
     const { id } = data;

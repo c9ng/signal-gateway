@@ -5,8 +5,38 @@ import { NotFound, BadRequest, HttpError, Forbidden } from '../errors';
 import Account from '../models/Account';
 import { getOrCreateConnection, connect, disconnect, updateEvents } from '../connections';
 
-function validateEvents(events: string[]): EventType[] {
-    for (const event of events) {
+function validateTel(tel: any): string {
+    if (tel == undefined) {
+        throw new BadRequest('Parameter "tel" is required.');
+    }
+
+    if (typeof tel !== 'string') {
+        throw new BadRequest(`Parameter "tel" has illegal type: ${typeof tel} (${JSON.stringify(tel)})`);
+    }
+
+    const norm = tel.replace(/[-\s().]+/g, '');
+    if (norm.length === 0) {
+        throw new BadRequest('Parameter "tel" is required.');
+    }
+
+    if (!/^\+?[0-9]+$/.test(norm)) {
+        throw new BadRequest(`Parameter "tel" is not a valid phone number: ${tel}`);
+    }
+
+    return norm;
+}
+
+function validateEvents(events: any): EventType[] {
+    if (!events) {
+        return [];
+    }
+
+    const eventsArray = Array.isArray(events) ?
+        [...new Set(events)] :
+        String(events).split(',');
+        eventsArray.sort();
+
+    for (const event of eventsArray) {
         switch (event) {
             case 'message':
             case 'configuration':
@@ -17,6 +47,7 @@ function validateEvents(events: string[]): EventType[] {
             case 'delivery':
             case 'read':
             case 'error':
+            case 'reconnect':
                 break;
 
             default:
@@ -24,29 +55,25 @@ function validateEvents(events: string[]): EventType[] {
         }
     }
 
-    return events as EventType[];
+    return eventsArray as EventType[];
 }
 
 export async function createAccount (req: Request, res: Response) {
     const token = res.locals.oauthToken as Token;
 
-    let events: any = req.body.events;
+    const events = validateEvents(req.body.events);
+    const tel = validateTel(req.body.tel);
 
-    if (!events) {
-        events = [];
-    } else if (!Array.isArray(events)) {
-        events = [...new Set(String(events).split(','))];
-    } else {
-        events = [...new Set(events)];
+    const { name } = req.body;
+
+    if (typeof name !== 'string' || name.length === 0) {
+        throw new BadRequest('Parameter "name" is required.');
     }
 
-    events.sort();
-    validateEvents(events);
-
     const account = await Account.create({
-        clientId:  token.client.id,
-        tel:  req.body.tel,
-        name: req.body.name,
+        clientId: token.client.id,
+        tel,
+        name,
         events,
         deviceRegistered: false,
     });
@@ -82,7 +109,7 @@ export async function getAccount (req: Request, res: Response) {
     const token = res.locals.oauthToken as Token;
 
     const account = await Account.findOne({
-        where: { clientId: token.client.id, tel: req.params.tel }
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
     });
 
     if (!account) {
@@ -103,7 +130,7 @@ export async function updateAccount (req: Request, res: Response) {
     const token = res.locals.oauthToken as Token;
 
     const account = await Account.findOne({
-        where: { clientId: token.client.id, tel: req.params.tel }
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
     });
 
     if (!account) {
@@ -111,20 +138,11 @@ export async function updateAccount (req: Request, res: Response) {
     }
 
     if ('events' in req.body) {
-        const events: any = req.body.event;
-        if (!events) {
-            account.events = [];
-        } else if (!Array.isArray(events)) {
-            account.events = [...new Set(String(events).split(','))] as any;
-        } else {
-            account.events = [...new Set(events)];
-        }
-        account.events.sort();
-        validateEvents(account.events);
+        account.events = validateEvents(req.body.events);
     }
 
     const { name } = req.body;
-    if (typeof name === 'string') {
+    if (typeof name === 'string' && name.length > 0) {
         account.name = name;
     }
 
@@ -145,7 +163,7 @@ export async function deleteAccount (req: Request, res: Response) {
     const token = res.locals.oauthToken as Token;
 
     const account = await Account.findOne({
-        where: { clientId: token.client.id, tel: req.params.tel }
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
     });
 
     if (!account) {
@@ -167,7 +185,7 @@ export async function requestSMSVerification (req: Request, res: Response) {
     }
 
     const account = await Account.findOne({
-        where: { clientId: token.client.id, tel: req.params.tel }
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
     });
 
     if (!account) {
@@ -197,7 +215,7 @@ export async function requestVoiceVerification (req: Request, res: Response) {
     }
 
     const account = await Account.findOne({
-        where: { clientId: token.client.id, tel: req.params.tel }
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
     });
 
     if (!account) {
@@ -232,7 +250,7 @@ export async function registerSingleDevice (req: Request, res: Response) {
     }
 
     const account = await Account.findOne({
-        where: { clientId: token.client.id, tel: req.params.tel }
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
     });
 
     if (!account) {
@@ -259,5 +277,12 @@ export async function registerSingleDevice (req: Request, res: Response) {
 
     await connect(account);
 
-    return res.json({success: true});
+    return res.json({
+        account: {
+            tel:    account.tel,
+            name:   account.name,
+            events: account.events,
+            deviceRegistered: account.deviceRegistered,
+        }
+    });
 }

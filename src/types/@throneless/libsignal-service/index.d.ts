@@ -37,7 +37,7 @@ export interface SignedPreKey {
 export interface Unprocessed {
     id: string;
     version: number;
-    envelope: Uint8Array;
+    envelope?: Uint8Array;
     timestamp: number;
     attempts: number;
 
