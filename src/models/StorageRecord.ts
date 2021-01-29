@@ -1,6 +1,5 @@
 import { DataType, Model, Table, Column, AllowNull, ForeignKey, BelongsTo, PrimaryKey } from 'sequelize-typescript';
 import OauthClient from './OauthClient';
-import Account from './Account';
 import { NODE_ENV } from '../config/env';
 import * as db from '../config/db';
 
@@ -35,5 +34,5 @@ export default class StorageRecord extends Model {
 
     @AllowNull(false)
     @Column(db[NODE_ENV].dialect === 'postgres' ? DataType.JSONB : DataType.JSON)
-    data!: object;
+    data!: any;
 }

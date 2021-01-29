@@ -87,7 +87,13 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
         }
     }
 
-    console.error(err.stack ?? `${err.name}: ${err.message}`);
+    if (err.stack) {
+        console.error(err.stack);
+    } else if (err.name && err.message) {
+        console.error(`${err.name}: ${err.message}`);
+    } else {
+        console.error(err);
+    }
     return res.status(500).json({
         error: 'internal_error',
         error_description: 'Internal Server Error',
@@ -127,7 +133,7 @@ async function main() {
 
 async function afterAllConnectionsShutdown() {
     await signalConnections.shutDown();
-    console.log('shutdown complete');
+    console.info('shutdown complete');
 }
 
 function shutdown(signal: string) {
@@ -145,5 +151,7 @@ function shutdown(signal: string) {
                 afterAllConnectionsShutdown();
             }
         });
+    } else {
+        console.info(`Received ${signal}, but the server isn't listening anymore?`);
     }
 }

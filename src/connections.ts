@@ -2,7 +2,7 @@ import {
     MessageSender, MessageReceiver, ProtocolStore,
     MessageEvent, ConfigurationEvent, GroupEvent, ContactEvent,
     VerifiedEvent, SentEvent, DeliveryEvent, ReadEvent, ErrorEvent,
-    CloseEvent,
+    CloseEvent, ReconnectEvent,
     Event,
     EventType,
 } from '@throneless/libsignal-service';
@@ -23,7 +23,7 @@ export interface Connection {
 const connections = new Map<string, Connection>();
 
 async function disconnectInternal(connection: Connection): Promise<void> {
-    connection.receiver.shutdown();
+    await connection.receiver.close();
 }
 
 interface Payload {
@@ -36,7 +36,7 @@ interface Payload {
 async function deliverEvent(clientId: string, tel: string, event: Event, payload: Payload): Promise<void> {
     try {
         const client = await OauthClient.findOne({
-            where: { clientId }
+            where: { id: clientId }
         });
 
         // TODO: error logging?
@@ -53,6 +53,9 @@ async function deliverEvent(clientId: string, tel: string, event: Event, payload
         event.confirm();
     } catch (error) {
         console.error(`Webhook delivery to ${tel} for client ${clientId} failed:`, error);
+        if (NODE_ENV === 'development') {
+            console.error(`Webhook payload was:`, payload);
+        }
     }
 }
 
@@ -81,11 +84,18 @@ const HANDLERS = {
     read: (clientId: string, tel: string) => async (event: ReadEvent) =>
         deliverEvent(clientId, tel, event, { receiver: tel, type: event.type }),
 
-    // TODO: error details
     error: (clientId: string, tel: string) => async (event: ErrorEvent) =>
-        deliverEvent(clientId, tel, event, { receiver: tel, type: event.type }),
+        deliverEvent(clientId, tel, event, { receiver: tel, type: event.type,
+            payload: event.error instanceof Error ? {
+                name: event.error.name,
+                message: event.error.message,
+            } : event.error
+        }),
 
     close: (clientId: string, tel: string) => async (event: CloseEvent) =>
+        deliverEvent(clientId, tel, event, { receiver: tel, type: event.type }),
+
+    reconnect: (clientId: string, tel: string) => async (event: ReconnectEvent) =>
         deliverEvent(clientId, tel, event, { receiver: tel, type: event.type }),
 }
 
@@ -104,7 +114,12 @@ export async function connect(account: Account): Promise<Connection> {
     await protocolStore.load();
 
     const sender = new MessageSender(protocolStore);
-    const receiver = new MessageReceiver();
+    await sender.connect();
+
+    // TODO: when do we need signalingKey?
+    const receiver = new MessageReceiver(protocolStore);
+    await receiver.connect();
+
     const listeners = new Map<EventType, (event: Event) => Promise<void>>();
 
     connection = { clientId, tel, sender, receiver, listeners };
@@ -117,16 +132,21 @@ export async function connect(account: Account): Promise<Connection> {
         (receiver as any).addEventListener(eventType, listener);
     }
 
+    receiver.addEventListener('error', event => {
+        const { error } = event;
+        console.error(error ?? 'unknown error event');
+    });
+
     return connection;
 }
 
-export async function updateEvents(account: Account): Promise<Connection> {
+export async function updateEvents(account: Account): Promise<Connection|null> {
     const { clientId, tel } = account;
     const key = `${clientId}/${tel}`;
     let connection = connections.get(key);
 
     if (!connection) {
-        return connect(account);
+        return null;
     }
 
     const { listeners, receiver } = connection;
@@ -172,12 +192,15 @@ export async function getOrCreateConnection(account: Account): Promise<Connectio
 }
 
 export async function startUp(): Promise<void> {
-    const accounts = await Account.findAll();
+    const accounts = await Account.findAll({
+        where: {
+            deviceRegistered: true
+        }
+    });
 
     for (const account of accounts) {
         await connect(account);
     }
-
 }
 
 export async function shutDown(): Promise<void> {

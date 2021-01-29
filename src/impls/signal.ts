@@ -4,10 +4,134 @@ import * as db from '../config/db';
 import {
     ProtocolStoreBackend, IdentityKey, Session,
     PreKey, SignedPreKey,
-    Unprocessed, Configuration,
+    Unprocessed, Group, Configuration,
 } from "@throneless/libsignal-service";
 
 const DIALECT = db[NODE_ENV].dialect;
+
+const debug = NODE_ENV === 'development' ?
+    (...args: any[]) => console.info(...args) :
+    (...args: any[]) => {};
+
+function base64ToArrayBuffer(value: string): ArrayBuffer {
+    const buffer = Buffer.from(value, 'base64');
+    const { byteOffset, byteLength } = buffer;
+    return buffer.buffer.slice(byteOffset, byteOffset + byteLength);
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    return Buffer.from(buffer).toString('base64');
+}
+
+function base64ToUint8Array(value: string): Uint8Array {
+    const buffer = Buffer.from(value, 'base64');
+    const { byteOffset, byteLength } = buffer;
+    return new Uint8Array(buffer.buffer.slice(byteOffset, byteOffset + byteLength));
+}
+
+function uint8ArrayToBase64(array: Uint8Array): string {
+    return Buffer.from(array).toString('base64');
+}
+
+const loadIdentityKey = ({data}: StorageRecord) => ({
+    ...data,
+    publicKey: base64ToArrayBuffer(data.publicKey),
+} as IdentityKey);
+
+const storeIdentityKey = (data: IdentityKey) => ({
+    ...data,
+    publicKey: arrayBufferToBase64(data.publicKey),
+});
+
+// The record field contains weird JSON data with invalid unicode
+// characters. In order to make it round-trip safe to/from the
+// database I encode it as base64.
+const loadSession = ({data}: StorageRecord) => {
+    const { record } = data;
+    return {
+        ...data,
+        record: typeof record === 'string' ?
+            Buffer.from(record, 'base64').toString() :
+            record,
+    } as Session;
+};
+
+const storeSession = (data: Session) => {
+    const { record } = data;
+    return {
+        ...data,
+        record: typeof record === 'string' ?
+            // maybe from 'binary' encoding?
+            Buffer.from(record).toString('base64') :
+            record,
+    };
+};
+
+const loadPreKey = ({data}: StorageRecord) => ({
+    ...data,
+    publicKey:  base64ToArrayBuffer(data.publicKey),
+    privateKey: base64ToArrayBuffer(data.privateKey),
+} as PreKey);
+
+const storePreKey = (data: PreKey) => ({
+    ...data,
+    publicKey:  arrayBufferToBase64(data.publicKey),
+    privateKey: arrayBufferToBase64(data.privateKey),
+});
+
+const loadSignedPreKey = ({data}: StorageRecord) => ({
+    ...data,
+    publicKey:  base64ToArrayBuffer(data.publicKey),
+    privateKey: base64ToArrayBuffer(data.privateKey),
+} as SignedPreKey);
+
+const storeSignedPreKey = (data: SignedPreKey) => ({
+    ...data,
+    publicKey:  arrayBufferToBase64(data.publicKey),
+    privateKey: arrayBufferToBase64(data.privateKey),
+});
+
+const loadUnprocessed = ({data}: StorageRecord) => ({
+    ...data,
+    envelope: base64ToUint8Array(data.envelope),
+} as Unprocessed);
+
+const storeUnprocessed = (data: Unprocessed) => ({
+    ...data,
+    envelope: uint8ArrayToBase64(data.envelope),
+});
+
+const loadConfiguration = ({data}: StorageRecord) => {
+    const { id } = data;
+    if (data.id === 'identityKey') {
+        const { value } = data;
+        return {
+            id,
+            value: {
+                pubKey:  base64ToArrayBuffer(value.pubKey),
+                privKey: base64ToArrayBuffer(value.privKey),
+            }
+        };
+    } else {
+        return data;
+    }
+};
+
+const storeConfiguration = (data: Configuration) => {
+    const { id } = data;
+    if (data.id === 'identityKey') {
+        const { value } = data;
+        return {
+            id,
+            value: {
+                pubKey:  arrayBufferToBase64(value.pubKey),
+                privKey: arrayBufferToBase64(value.privKey),
+            }
+        };
+    } else {
+        return data;
+    }
+};
 
 export class SignalStorage implements ProtocolStoreBackend {
     readonly clientId: string;
@@ -28,16 +152,17 @@ export class SignalStorage implements ProtocolStoreBackend {
             }
         });
 
-        return records.map(record => record.data as IdentityKey);
+        return records.map(loadIdentityKey);
     }
 
     async createOrUpdateIdentityKey(data: IdentityKey) {
+        debug('createOrUpdateIdentityKey:', data);
         await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'IdentityKey',
             id:       data.id,
-            data,
+            data:     storeIdentityKey(data),
         });
     }
 
@@ -62,16 +187,17 @@ export class SignalStorage implements ProtocolStoreBackend {
             }
         });
 
-        return records.map(record => record.data as Session);
+        return records.map(loadSession);
     }
 
     async createOrUpdateSession(data: Session) {
+        debug('createOrUpdateSession:', data);
         await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'Session',
             id:       data.id,
-            data,
+            data:     storeSession(data),
         });
     }
 
@@ -141,16 +267,17 @@ export class SignalStorage implements ProtocolStoreBackend {
             }
         });
 
-        return records.map(record => record.data as PreKey);
+        return records.map(loadPreKey);
     }
 
     async createOrUpdatePreKey(data: PreKey) {
+        debug('createOrUpdatePreKey:', data);
         await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'PreKey',
             id:       data.id,
-            data,
+            data:     storePreKey(data),
         });
     }
 
@@ -185,16 +312,17 @@ export class SignalStorage implements ProtocolStoreBackend {
             }
         });
 
-        return records.map(record => record.data as SignedPreKey);
+        return records.map(loadSignedPreKey);
     }
 
     async createOrUpdateSignedPreKey(data: SignedPreKey) {
+        debug('createOrUpdateSignedPreKey:', data);
         await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'SignedPreKey',
             id:       data.id,
-            data,
+            data:     storeSignedPreKey(data),
         });
     }
 
@@ -229,7 +357,7 @@ export class SignalStorage implements ProtocolStoreBackend {
             }
         });
 
-        return records.map(record => record.data as Unprocessed);
+        return records.map(loadUnprocessed);
     }
 
     async getUnprocessedCount() {
@@ -257,16 +385,17 @@ export class SignalStorage implements ProtocolStoreBackend {
             return null;
         }
 
-        return record?.data as Unprocessed;
+        return loadUnprocessed(record);
     }
 
     async saveUnprocessed(data: Unprocessed) {
+        debug('saveUnprocessed:', data);
         await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'Unprocessed',
             id:       data.id,
-            data,
+            data:     storeUnprocessed(data),
         });
     }
 
@@ -308,7 +437,7 @@ export class SignalStorage implements ProtocolStoreBackend {
             record.data = {};
         }
 
-        (record.data as Unprocessed).attempts = attempts;
+        record.data.attempts = attempts;
 
         await record.save();
     }
@@ -319,6 +448,7 @@ export class SignalStorage implements ProtocolStoreBackend {
         this.fallbackUpdateUnprocessedAttempts;
 
     async updateUnprocessedWithData(id: string, data: Unprocessed) {
+        debug('updateUnprocessedWithData:', data);
         await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
@@ -349,6 +479,72 @@ export class SignalStorage implements ProtocolStoreBackend {
         });
     }
 
+    // ==== Group ====
+    async createOrUpdateGroup(data: Group): Promise<void> {
+        debug('createOrUpdateGroup:', data);
+        const { id } = data;
+        await StorageRecord.upsert({
+            clientId: this.clientId,
+            tel:      this.tel,
+            type:     'Group',
+            id,
+            data,
+        });
+    }
+
+    async getGroupById(id: string): Promise<Group|null> {
+        const record = await StorageRecord.findOne({
+            where: {
+                clientId: this.clientId,
+                tel:      this.tel,
+                type:     'Group',
+                id,
+            }
+        });
+
+        if (!record) {
+            return null;
+        }
+
+        return record.data as Group;
+    }
+
+    async getAllGroups(): Promise<Group[]> {
+        const records = await StorageRecord.findAll({
+            where: {
+                clientId: this.clientId,
+                tel:      this.tel,
+                type:     'Group',
+            }
+        });
+
+        return records.map(record => record.data as Group);
+    }
+
+    async getAllGroupIds(): Promise<string[]> {
+        const records = await StorageRecord.findAll({
+            where: {
+                clientId: this.clientId,
+                tel:      this.tel,
+                type:     'Group',
+            },
+            attributes: ['id']
+        });
+
+        return records.map(record => record.id);
+    }
+
+    async removeGroupById(id: string): Promise<void> {
+        await StorageRecord.destroy({
+            where: {
+                clientId: this.clientId,
+                tel:      this.tel,
+                type:     'Group',
+                id,
+            }
+        });
+    }
+
     // ==== Configuration ====
     async getAllConfiguration() {
         const records = await StorageRecord.findAll({
@@ -359,16 +555,17 @@ export class SignalStorage implements ProtocolStoreBackend {
             }
         });
 
-        return records.map(record => record.data as Configuration);
+        return records.map(loadConfiguration);
     }
 
     async createOrUpdateConfiguration(data: Configuration) {
+        debug('createOrUpdateConfiguration:', data);
         await StorageRecord.upsert({
             clientId: this.clientId,
             tel:      this.tel,
             type:     'Configuration',
             id:       data.id,
-            data,
+            data:     storeConfiguration(data),
         });
     }
 

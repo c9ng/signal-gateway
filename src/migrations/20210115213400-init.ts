@@ -3,7 +3,7 @@ import { NODE_ENV } from '../config/env';
 import * as db from '../config/db';
 import { quoteSqlName as q } from '../utils';
 
-const { INTEGER, TEXT, DATE, ENUM, ARRAY, UUID, JSON, JSONB } = DataTypes;
+const { INTEGER, TEXT, DATE, ENUM, ARRAY, UUID, JSON, JSONB, BOOLEAN } = DataTypes;
 const DIALECT = db[NODE_ENV].dialect;
 const TEXT_ARRAY = DIALECT === 'postgres' ? ARRAY(TEXT) : JSON;
 
@@ -217,6 +217,12 @@ export async function up(query: QueryInterface) {
             allowNull: false,
             defaultValue: [],
         },
+
+        deviceRegistered: {
+            type: BOOLEAN,
+            allowNull: false,
+            defaultValue: false,
+        }
     });
 
     await query.addIndex('Accounts', ['clientId', 'name'], { unique: true });

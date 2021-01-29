@@ -28,6 +28,12 @@ TODO
 * [ ] add license header to all files
 * [ ] maybe publish docker image?
 
+Fix Bugs
+--------
+
+* [ ] "V1 session storage migration error: registrationId undefined for open
+      session version undefined"
+
 License
 -------
 

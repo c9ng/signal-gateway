@@ -48,15 +48,15 @@ export async function createAccount (req: Request, res: Response) {
         tel:  req.body.tel,
         name: req.body.name,
         events,
+        deviceRegistered: false,
     });
-
-    await connect(account);
 
     return res.json({
         account: {
             tel:  account.tel,
             name: account.name,
             events,
+            deviceRegistered: account.deviceRegistered,
         }
     });
 }
@@ -73,6 +73,7 @@ export async function getAccounts (req: Request, res: Response) {
             tel:    account.tel,
             name:   account.name,
             events: account.events,
+            deviceRegistered: account.deviceRegistered,
         }))
     });
 }
@@ -93,6 +94,7 @@ export async function getAccount (req: Request, res: Response) {
             tel:    account.tel,
             name:   account.name,
             events: account.events,
+            deviceRegistered: account.deviceRegistered,
         }
     });
 }
@@ -134,6 +136,7 @@ export async function updateAccount (req: Request, res: Response) {
             tel:    account.tel,
             name:   account.name,
             events: account.events,
+            deviceRegistered: account.deviceRegistered,
         }
     });
 }
@@ -250,6 +253,11 @@ export async function registerSingleDevice (req: Request, res: Response) {
         }
         throw error;
     }
+
+    account.deviceRegistered = true;
+    await account.save();
+
+    await connect(account);
 
     return res.json({success: true});
 }

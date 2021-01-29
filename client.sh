@@ -26,7 +26,7 @@ ACCESS_TOKEN=$(curl -X POST --silent "$ORIGIN/oauth/token" \
     -d "client_id=$CLIENT_ID&client_secret=$CLIENT_SECRET&grant_type=client_credentials&scope=$SCOPE" \
     -H "Content-Type: application/x-www-form-urlencoded" | jq -r .accessToken)
 
-path=$1
+path=${1?}
 shift
 
 exec curl --silent -H "Authorization: Bearer $ACCESS_TOKEN" "$ORIGIN$path" "$@"

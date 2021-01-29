@@ -176,6 +176,7 @@ export async function loadSeeds(): Promise<void> {
                                     tel,
                                     name,
                                     events,
+                                    deviceRegistered: false,
                                 });
                             }
                         }

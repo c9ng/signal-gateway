@@ -2,29 +2,147 @@ import errors from './errors';
 
 export interface IdentityKey {
     id: string;
+    publicKey: ArrayBuffer;
+    firstUse: boolean;
+    timestamp: number;
+    verified: number;
+    nonblockingApproval: boolean;
 }
 
 export interface Session {
     id: string;
-    number?: string|number; // TODO
+    number: string;
+    deviceId: number;
+
+    // seems to be a (invalid!!) JSON string. wtf.
+    // this might not rount trip to/from the database?
+    // so maybe better encode as base64
+    record: string;
 }
 
 export interface PreKey {
     id: string;
+    publicKey:  ArrayBuffer;
+    privateKey: ArrayBuffer;
 }
 
 export interface SignedPreKey {
     id: string;
+    publicKey:  ArrayBuffer;
+    privateKey: ArrayBuffer;
+    created_at: number;
+    confirmed: boolean;
 }
 
 export interface Unprocessed {
     id: string;
-    attempts?: number;
+    version: number;
+    envelope: Uint8Array;
+    timestamp: number;
+    attempts: number;
+
+    // I don't quite understand the code in libsignal-service...
+    source?:          string; // guessed type
+    sourceUuid?:      string; // guessed type
+    sourceDevice?:    string; // guessed type
+    serverTimestamp?: number; // guessed type
+    decrypted?:       string;
 }
 
-export interface Configuration {
+export interface Group {
     id: string;
+    numbers: string[];
+    numberRegistrationIds?: {
+        [number: string]: {
+            // it really seems to just be the empty object?
+        }
+    }
 }
+
+export interface Config<Value=any> {
+    id: string;
+    value: Value;
+}
+
+export interface NumberIdConfig extends Config<string> {
+    id: 'number_id'
+}
+
+export interface UuidIdConfig extends Config<string> {
+    id: 'uuid_id'
+}
+
+export interface DevicenameEncryptedConfig extends Config<boolean> {
+    id: 'deviceNameEncrypted'
+}
+
+export interface SignedKeyIdConfig extends Config<number> {
+    id: 'signedKeyId'
+}
+
+export interface SignedKeyRotationRejected extends Config<boolean> {
+    id: 'signedKeyRotationRejected'
+}
+
+export interface MaxPreKeyIdConfig extends Config<number> {
+    id: 'maxPreKeyId'
+}
+
+export interface BlockedConfig extends Config<string[]> {
+    id: 'blocked'
+}
+
+export interface BlockedUuidsConfig extends Config<string[]> {
+    id: 'blocked-uuids'
+}
+
+export interface BlockedGroupsConfig extends Config<string[]> {
+    id: 'blocked-groups'
+}
+
+export interface IdentityKeyConfig extends Config<{
+    pubKey:  ArrayBuffer; // TODO
+    privKey: ArrayBuffer; // TODO
+}> {
+    id: 'identityKey'
+}
+
+export interface PasswordConfig extends Config<string> {
+    id: 'password'
+}
+
+export interface RegistrationIdConfig extends Config<number> {
+    id: 'registrationId'
+}
+
+export interface ProfileKeyConfig extends Config<string|number> {
+    id: 'profileKey'
+    // TODO: guessed value type
+}
+
+export interface UserAgentConfig extends Config<string> {
+    id: 'userAgent'
+}
+
+export interface ReadReceiptsSettingAgentConfig extends Config<boolean> {
+    id: 'read-receipts-setting'
+}
+
+export interface RegionCodeConfig extends Config<string> {
+    id: 'regionCode'
+}
+
+export interface SignalingKeyConfig extends Config<string> {
+    id: 'signaling_key'
+    // TODO: guessed value type
+}
+
+export type Configuration =
+    NumberIdConfig | UuidIdConfig | DevicenameEncryptedConfig | SignedKeyIdConfig |
+    SignedKeyRotationRejected | MaxPreKeyIdConfig | BlockedConfig | BlockedUuidsConfig |
+    BlockedGroupsConfig | IdentityKeyConfig | PasswordConfig | RegistrationIdConfig |
+    ProfileKeyConfig | UserAgentConfig | ReadReceiptsSettingAgentConfig | RegionCodeConfig |
+    SignalingKeyConfig;
 
 export interface ProtocolStoreBackend {
     pollDelay?: number;
@@ -58,6 +176,12 @@ export interface ProtocolStoreBackend {
     removeUnprocessed(id: string): Promise<void>;
     removeAllUnprocessed(): Promise<void>;
 
+    createOrUpdateGroup(data: Group): Promise<void>;
+    getGroupById(id: string): Promise<Group|null>;
+    getAllGroups(): Promise<Group[]>;
+    getAllGroupIds(): Promise<string[]>;
+    removeGroupById(id: string): Promise<void>;
+
     getAllConfiguration(): Promise<Configuration[]>;
     createOrUpdateConfiguration(data: Configuration): Promise<void>;
     removeConfigurationById(id: string): Promise<void>;
@@ -66,10 +190,6 @@ export interface ProtocolStoreBackend {
     removeAll(): Promise<void>;
 }
 
-export interface Group {
-    readonly id: string;
-    readonly numbers: string[];
-}
 
 export class ProtocolStore {
     readonly storage: ProtocolStoreBackend;
@@ -177,9 +297,9 @@ export class MessageSender {
     leaveGroup(groupId: string, groupIdentifiers: string[], options?: GroupOptions): Promise<void>;
 }
 
-export type EventType = 'message' | 'configuration' | 'group' | 'contact' | 'verified' | 'sent' | 'delivery' | 'read' | 'error' | 'close';
+export type EventType = 'message' | 'configuration' | 'group' | 'contact' | 'verified' | 'sent' | 'delivery' | 'read' | 'error' | 'close' | 'reconnect';
 
-export abstract class Event {
+export class Event {
     readonly type: string;
     constructor(type: string);
     confirm(): void;
@@ -213,7 +333,7 @@ export interface AttachmentPointer {
     data: ArrayBuffer;
 }
 
-export class MessageEvent extends Event {
+export interface MessageEvent extends Event {
     readonly type: 'message';
     readonly data: {
         message: {
@@ -226,33 +346,38 @@ export class MessageEvent extends Event {
     }
 }
 
-export class ConfigurationEvent extends Event {
+export interface ConfigurationEvent extends Event {
     readonly type: 'configuration';
     readonly configuration: {
         [key: string]: any; // TODO
     }
 }
 
-export class GroupEvent extends Event {
+export interface GroupEvent extends Event {
     readonly type: 'group';
     readonly groupDetails: {
         [key: string]: any; // TODO
     }
 }
 
-export class ContactEvent extends Event {
+export interface ContactEvent extends Event {
     readonly type: 'contact';
     readonly contactDetails: {
         [key: string]: any; // TODO
     }
 }
 
-export class VerifiedEvent extends Event {
+export interface VerifiedEvent extends Event {
     readonly type: 'verified';
-    readonly verified: boolean; // TODO
+    readonly verified: {
+        state: string,
+        destination: string,
+        destinationUuid: string,
+        identityKey: ArrayBuffer,
+    };
 }
 
-export class SentEvent extends Event {
+export interface SentEvent extends Event {
     readonly type: 'sent';
     readonly data: {
         // TODO
@@ -262,7 +387,7 @@ export class SentEvent extends Event {
     }
 }
 
-export class DeliveryEvent extends Event {
+export interface DeliveryEvent extends Event {
     readonly type: 'delivery';
     readonly deliveryReceipt: {
         // TODO
@@ -272,7 +397,7 @@ export class DeliveryEvent extends Event {
     }
 }
 
-export class ReadEvent extends Event {
+export interface ReadEvent extends Event {
     readonly type: 'read';
     readonly read: {
         // TODO
@@ -281,18 +406,32 @@ export class ReadEvent extends Event {
     }
 }
 
-export class ErrorEvent extends Event {
+export interface ErrorEvent extends Event {
     readonly type: 'error';
+    readonly error: any;
 }
 
-export class CloseEvent extends Event {
+export interface CloseEvent extends Event {
     readonly type: 'close';
 }
 
+export interface ReconnectEvent extends Event {
+    readonly type: 'reconnect';
+}
+
+export interface ReceiverOptions {
+    retryCached?: boolean;
+}
+
 export class MessageReceiver {
+    readonly store: ProtocolStore;
+    readonly signalingKey?: ArrayBuffer | Buffer;
+
+    constructor(store: ProtocolStore, signalingKey?: ArrayBuffer | Buffer, options?: ReceiverOptions);
+
     connect(): Promise<void>;
 
-    //addEventListener(eventType: EventType,       handler: (event: Event)              => void): void;
+    addEventListener(eventType: EventType,       handler: (event: Event)              => void): void;
     addEventListener(eventType: 'message',       handler: (event: MessageEvent)       => void): void;
     addEventListener(eventType: 'configuration', handler: (event: ConfigurationEvent) => void): void;
     addEventListener(eventType: 'group',         handler: (event: GroupEvent)         => void): void;
@@ -303,8 +442,9 @@ export class MessageReceiver {
     addEventListener(eventType: 'read',          handler: (event: ReadEvent)          => void): void;
     addEventListener(eventType: 'error',         handler: (event: ErrorEvent)         => void): void;
     addEventListener(eventType: 'close',         handler: (event: CloseEvent)         => void): void;
+    addEventListener(eventType: 'reconnect',     handler: (event: ReconnectEvent)     => void): void;
 
-    //removeEventListener(eventType: EventType,       handler: (event: Event)              => void): void;
+    removeEventListener(eventType: EventType,       handler: (event: Event)              => void): void;
     removeEventListener(eventType: 'message',       handler: (event: MessageEvent)       => void): void;
     removeEventListener(eventType: 'configuration', handler: (event: ConfigurationEvent) => void): void;
     removeEventListener(eventType: 'group',         handler: (event: GroupEvent)         => void): void;
@@ -315,10 +455,12 @@ export class MessageReceiver {
     removeEventListener(eventType: 'read',          handler: (event: ReadEvent)          => void): void;
     removeEventListener(eventType: 'error',         handler: (event: ErrorEvent)         => void): void;
     removeEventListener(eventType: 'close',         handler: (event: CloseEvent)         => void): void;
+    removeEventListener(eventType: 'reconnect',     handler: (event: ReconnectEvent)     => void): void;
 
     handleAttachment(attachment: InAttachment): Promise<AttachmentPointer>;
 
-    shutdown(): void;
+    close(): Promise<any>; // same return type as drain()
+    drain(): Promise<any>; // TODO: return type
 }
 
 

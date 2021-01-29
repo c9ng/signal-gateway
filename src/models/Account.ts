@@ -29,4 +29,8 @@ export default class Account extends Model {
     @AllowNull(false)
     @Column(DIALECT === 'postgres' ? DataType.ARRAY(DataType.TEXT) : DataType.JSON)
     events!: EventType[];
+
+    @AllowNull(false)
+    @Column(DataType.BOOLEAN)
+    deviceRegistered!: boolean;
 }

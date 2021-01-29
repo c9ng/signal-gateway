@@ -91,10 +91,7 @@ export async function getClient(clientId: string, clientSecret: string|null): Pr
     accessTokenLifetime?: number;
     refreshTokenLifetime?: number;
 }|null> {
-    const where: WhereOptions = {
-        id: clientId,
-    };
-    const client = await OauthClient.findOne({ where });
+    const client = await OauthClient.findOne({ where: { id: clientId } });
     if (!client) {
         return null;
     }

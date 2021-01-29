@@ -87,7 +87,8 @@ function convertMessage(data: any): OutMessageToRecipients {
             }
 
             // TODO: maybe allow supplying data via multipart form encoding or via url?
-            const arrayBuffer = Buffer.from(data, 'base64').buffer;
+            const buffer = Buffer.from(data, 'base64');
+            const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 
             if (size === undefined) {
                 throw new BadRequest(`Missing attachment key size.`);
