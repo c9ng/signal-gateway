@@ -1,7 +1,7 @@
 import { EventType, AccountManager } from '@throneless/libsignal-service';
 import { Request, Response } from 'express';
 import { Token } from 'oauth2-server';
-import { NotFound, BadRequest, HttpError, Forbidden } from '../errors';
+import { NotFound, BadRequest, HttpError, Forbidden, NotImplemented } from '../errors';
 import Account from '../models/Account';
 import { getOrCreateConnection, connect, disconnect, updateEvents } from '../connections';
 
@@ -285,4 +285,24 @@ export async function registerSingleDevice (req: Request, res: Response) {
             deviceRegistered: account.deviceRegistered,
         }
     });
+}
+
+export async function getProfile (req: Request, res: Response) {
+    const token = res.locals.oauthToken as Token;
+
+    const account = await Account.findOne({
+        where: { clientId: token.client.id, tel: req.params.tel }
+    });
+
+    if (!account) {
+        throw new NotFound('Could not find account with given tel.');
+    }
+
+    const connection = await getOrCreateConnection(account);
+
+    const myNumber = await connection.sender.store.getNumber();
+    const myUuid   = await connection.sender.store.getUuid();
+    const profile  = await connection.sender.getProfile(myUuid || myNumber);
+
+    return res.json(profile);
 }

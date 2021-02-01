@@ -5,6 +5,7 @@ import * as oauthModel from './impls/oauth';
 import * as accountsController from './controllers/accountsController';
 import * as messagesController from './controllers/messagesController';
 import * as attachmentsController from './controllers/attachmentsController';
+import * as contactsController from './controllers/contactsController';
 
 const oauthServer = new OAuth2Server({
     model: oauthModel
@@ -67,9 +68,14 @@ routes.delete('/accounts/:tel', auth('write:accounts'), handle(accountsControlle
 routes.post(  '/accounts/:tel/verify_sms',             auth('write:accounts'), handle(accountsController.requestSMSVerification));
 routes.post(  '/accounts/:tel/verify_voice',           auth('write:accounts'), handle(accountsController.requestVoiceVerification));
 routes.post(  '/accounts/:tel/register_single_device', auth('write:accounts'), handle(accountsController.registerSingleDevice));
+routes.get(   '/accounts/:tel/profile',                auth('write:accounts'), handle(accountsController.getProfile));
 
 // ==== Messages ====
 routes.post('/accounts/:tel/messages', auth('write:messages'), handle(messagesController.sendMessage));
 
 // ==== Attachments ====
 routes.post('/accounts/:tel/attachment', auth('read:attachments'), handle(attachmentsController.getAttachment));
+
+// ==== Contacts ====
+routes.get('/accounts/:tel/contacts/:contactTel', auth('read:accounts'), handle(contactsController.getContact));
+routes.get('/accounts/:tel/avatars/:path(*)', auth('read:accounts'), handle(contactsController.getAvatar));

@@ -118,7 +118,8 @@ const storeUnprocessed = (data: Unprocessed) => {
 
 const loadConfiguration = ({data}: StorageRecord) => {
     const { id } = data;
-    if (data.id === 'identityKey') {
+    switch (data.id) {
+    case 'identityKey':
         const { value } = data;
         return {
             id,
@@ -127,14 +128,21 @@ const loadConfiguration = ({data}: StorageRecord) => {
                 privKey: base64ToArrayBuffer(value.privKey),
             }
         };
-    } else {
+        case 'profileKey':
+        case 'signaling_key':
+            return {
+                id,
+                value: base64ToArrayBuffer(data.value),
+            };
+    default:
         return data;
     }
 };
 
 const storeConfiguration = (data: Configuration) => {
     const { id } = data;
-    if (data.id === 'identityKey') {
+    switch (data.id) {
+    case 'identityKey':
         const { value } = data;
         return {
             id,
@@ -143,7 +151,13 @@ const storeConfiguration = (data: Configuration) => {
                 privKey: arrayBufferToBase64(value.privKey),
             }
         };
-    } else {
+    case 'profileKey':
+    case 'signaling_key':
+        return {
+            id,
+            value: arrayBufferToBase64(data.value),
+        };
+    default:
         return data;
     }
 };

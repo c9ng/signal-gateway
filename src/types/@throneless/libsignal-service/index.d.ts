@@ -1,4 +1,4 @@
-import errors from './errors';
+import errors from './src/errors';
 
 export interface IdentityKey {
     id: string;
@@ -14,7 +14,7 @@ export interface Session {
     number: string;
     deviceId: number;
 
-    // seems to be a (invalid!!) JSON string. wtf.
+    // seems to be a (invalid!!) JSON string.
     // this might not rount trip to/from the database?
     // so maybe better encode as base64
     record: string;
@@ -115,9 +115,8 @@ export interface RegistrationIdConfig extends Config<number> {
     id: 'registrationId'
 }
 
-export interface ProfileKeyConfig extends Config<string|number> {
+export interface ProfileKeyConfig extends Config<ArrayBuffer> {
     id: 'profileKey'
-    // TODO: guessed value type
 }
 
 export interface UserAgentConfig extends Config<string> {
@@ -132,9 +131,8 @@ export interface RegionCodeConfig extends Config<string> {
     id: 'regionCode'
 }
 
-export interface SignalingKeyConfig extends Config<string> {
+export interface SignalingKeyConfig extends Config<ArrayBuffer> {
     id: 'signaling_key'
-    // TODO: guessed value type
 }
 
 export type Configuration =
@@ -204,6 +202,13 @@ export class ProtocolStore {
 
     getNumber(): Promise<string>;
     getUuid(): Promise<string>;
+
+    getIdentityKeyPair(): Promise<{
+        privKey: ArrayBuffer,
+        pubKey: ArrayBuffer,
+    }>;
+
+    getProfileKey(): Promise<ArrayBuffer>;
 }
 
 export class AccountManager {
@@ -259,9 +264,28 @@ export interface GroupOptions {
 
 export interface Profile {
     // TODO
+    about:      string|null, // string is guessed
+    aboutEmoji: string|null, // string is guessed
+    avatar:     string|null, // string is guessed
+    capabilities: {
+        "gv1-migration": boolean,
+        gv2: boolean,
+    },
+    credential:  string|null, // string is guessed
+    identityKey: string, // base64
+    name:        string|null, // base64 and encrypted
+    payments: any|null, // TODO
+    unidentifiedAccess: string, // base64
+    unrestrictedUnidentifiedAccess: boolean,
+    username: string|null, // string is guessed
+    uuid:     string|null, // string is guessed
 }
 
-export interface Avatar {
+export interface Sticker {
+    // TODO
+}
+
+export interface StickerPackManifest {
     // TODO
 }
 
@@ -281,7 +305,9 @@ export class MessageSender {
     connect(): Promise<void>;
 
     getProfile(number: string, options?: { accessKey: string }): Promise<Profile>;
-    getAvatar(path: string): Promise<Avatar>;
+    getAvatar(path: string): Promise<ArrayBuffer>;
+    getSticker(packId: string, stickerId: string): Promise<Sticker>;
+    getStickerPackManifest(packId: string): Promise<StickerPackManifest>;
 
     sendMessage(message: OutMessageToRecipients, options?: SendMessageOptions): Promise<SendMessageResult>
     sendMessageToIdentifier(message: OutMessageToIdentifier, options?: SendMessageOptions): Promise<SendMessageResult>;

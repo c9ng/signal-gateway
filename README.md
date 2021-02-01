@@ -17,6 +17,9 @@ TODO
 * [x] send attachment
 * [x] download attachments (might change how I do that)
 * [ ] get user profile (name and avatar image)
+  * [x] get encrypted from signal
+  * [ ] decrypt name. I only get `{"given": "", "family": null}`. Can anyone help?
+  * [ ] decrypt avatar. I don't even know how to start here.
 * [ ] better errors?
 * [ ] tests
 * [ ] example client
