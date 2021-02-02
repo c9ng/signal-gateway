@@ -37,7 +37,6 @@ export async function getContact (req: Request, res: Response) {
     if (profile.name !== null) {
         // XXX: does not seem to work. I always get: { given: "", family: null }
         const profileKey = await connection.sender.store.getProfileKey();
-        console.log("profileKey:", profileKey);
 
         const name = await crypto.decryptProfileName(profile.name, profileKey);
         profile.name = {
@@ -67,10 +66,10 @@ export async function getAvatar (req: Request, res: Response) {
     }
 
     const connection = await getOrCreateConnection(account);
-    let avatar: ArrayBuffer;
+    let encryptedAvatar: ArrayBuffer;
     
     try {
-        avatar = await connection.sender.getAvatar(path);
+        encryptedAvatar = await connection.sender.getAvatar(path);
     } catch (error) {
         if (error.name === 'HTTPError') {
             throw new HttpError(error.code, error.message, error);
@@ -78,8 +77,9 @@ export async function getAvatar (req: Request, res: Response) {
         throw error;
     }
     // TODO: decrypt avatar somehow
-    //const identityKey = await connection.sender.store.getIdentityKeyPair();
-    
+    const profileKey = await connection.sender.store.getProfileKey() as any;
+    const avatar = await crypto.decryptProfile(encryptedAvatar, profileKey);
+    // XXX: decryptProfile() just returns undefined!!!
 
     return res.send(Buffer.from(avatar));
 }

@@ -218,10 +218,13 @@ export class AccountManager {
 
     constructor(username: string, password: string, store: ProtocolStore);
 
-    registerSingleDevice(code: string): Promise<any>;
     requestSMSVerification(): Promise<any>;
     requestVoiceVerification(): Promise<any>;
-    registerSecondDevice(setProvisioningUrl: string, confirmNumber: string, progressCallback?: () => void): Promise<any>;
+    registerSingleDevice(code: string): Promise<any>;
+    registerSecondDevice(
+        setProvisioningUrl: (provisioningUrl: string) => void,
+        confirmNumber: (number: string) => Promise<string> /* returns device name */,
+        progressCallback?: () => void): Promise<any>;
 }
 
 export interface OutMessage {
@@ -329,7 +332,7 @@ export type EventType = 'message' | 'configuration' | 'group' | 'contact' | 'ver
 export class Event {
     readonly type: string;
     constructor(type: string);
-    confirm(): void;
+    confirm?(): void;
 }
 
 export interface Attachment {

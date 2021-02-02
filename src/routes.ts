@@ -68,6 +68,8 @@ routes.delete('/accounts/:tel', auth('write:accounts'), handle(accountsControlle
 routes.post(  '/accounts/:tel/verify_sms',             auth('write:accounts'), handle(accountsController.requestSMSVerification));
 routes.post(  '/accounts/:tel/verify_voice',           auth('write:accounts'), handle(accountsController.requestVoiceVerification));
 routes.post(  '/accounts/:tel/register_single_device', auth('write:accounts'), handle(accountsController.registerSingleDevice));
+routes.post(  '/accounts/:tel/register_second_device', auth('write:accounts'), handle(accountsController.registerSecondDevice));
+routes.post(  '/accounts/:tel/confirm_second_device',  auth('write:accounts'), handle(accountsController.confirmSecondDevice));
 routes.get(   '/accounts/:tel/profile',                auth('write:accounts'), handle(accountsController.getProfile));
 
 // ==== Messages ====

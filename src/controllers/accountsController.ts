@@ -1,9 +1,10 @@
 import { EventType, AccountManager } from '@throneless/libsignal-service';
 import { Request, Response } from 'express';
 import { Token } from 'oauth2-server';
-import { NotFound, BadRequest, HttpError, Forbidden, NotImplemented } from '../errors';
+import { NotFound, BadRequest, HttpError, Forbidden } from '../errors';
 import Account from '../models/Account';
 import { getOrCreateConnection, connect, disconnect, updateEvents } from '../connections';
+import * as qrcode from 'qrcode-terminal';
 
 function validateTel(tel: any): string {
     if (tel == undefined) {
@@ -270,6 +271,112 @@ export async function registerSingleDevice (req: Request, res: Response) {
             throw new HttpError(error.code, error.message, error);
         }
         throw error;
+    }
+
+    account.deviceRegistered = true;
+    await account.save();
+
+    await connect(account);
+
+    return res.json({
+        account: {
+            tel:    account.tel,
+            name:   account.name,
+            events: account.events,
+            deviceRegistered: account.deviceRegistered,
+        }
+    });
+}
+
+export async function registerSecondDevice (req: Request, res: Response) {
+    const token = res.locals.oauthToken as Token;
+    const { password, deviceName } = req.body;
+
+    if (typeof password !== 'string' || password.length === 0) {
+        throw new BadRequest('Parameter "password" is required.');
+    }
+
+    if (typeof deviceName !== 'string' || deviceName.length === 0) {
+        throw new BadRequest('Parameter "deviceName" is required.');
+    }
+
+    const account = await Account.findOne({
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
+    });
+
+    if (!account) {
+        throw new NotFound('Could not find account with given tel.');
+    }
+
+    const connection = await getOrCreateConnection(account);
+    const accountManager = new AccountManager(account.tel, password, connection.sender.store);
+    let provisioningUrl: string;
+
+    try {
+        provisioningUrl = await new Promise(async (resolve, reject) => {
+            try {
+                await accountManager.registerSecondDevice(
+                    async provisioningUrl => {
+                        console.log(`registerSecondDevice ${account.tel} provisioningUrl:`, provisioningUrl);
+                        qrcode.generate(provisioningUrl);
+                        resolve(provisioningUrl);
+                    },
+                    async (number: string) => {
+                        return deviceName;
+                    },
+                    () => {
+                        console.log(`registerSecondDevice ${account.tel} progress...`);
+                    });
+            } catch (error) {
+                reject(error);
+            }
+        });
+    } catch (error) {
+        if (error.name === 'HTTPError') {
+            if (error.code === 403) {
+                throw new Forbidden('Invalid code, please try again.', error);
+            }
+            throw new HttpError(error.code, error.message, error);
+        }
+        throw error;
+    }
+    return res.json({provisioningUrl});
+
+    /*
+    account.deviceRegistered = true;
+    await account.save();
+
+    await connect(account);
+
+    return res.json({
+        account: {
+            tel:    account.tel,
+            name:   account.name,
+            events: account.events,
+            deviceRegistered: account.deviceRegistered,
+        }
+    });
+    */
+}
+
+export async function confirmSecondDevice (req: Request, res: Response) {
+    const token = res.locals.oauthToken as Token;
+    const { password, code } = req.body;
+
+    if (typeof password !== 'string' || password.length === 0) {
+        throw new BadRequest('Parameter "password" is required.');
+    }
+
+    if (typeof code !== 'string' || code.length === 0) {
+        throw new BadRequest('Parameter "code" is required.');
+    }
+
+    const account = await Account.findOne({
+        where: { clientId: token.client.id, tel: validateTel(req.params.tel) }
+    });
+
+    if (!account) {
+        throw new NotFound('Could not find account with given tel.');
     }
 
     account.deviceRegistered = true;

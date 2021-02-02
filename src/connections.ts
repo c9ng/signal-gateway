@@ -129,7 +129,9 @@ async function deliverEvent(clientId: string, tel: string, event: Event, payload
             }
         }
 
-        event.confirm();
+        if (event.confirm) {
+            event.confirm();
+        }
     } catch (error) {
         console.error(`Webhook delivery to ${tel} for client ${clientId} failed:`, error);
         if (NODE_ENV === 'development') {
