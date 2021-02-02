@@ -41,4 +41,4 @@ RUN echo " ---> Compiling TypeScript" && \
 USER node
 
 # exec needed to get PID 1, to which docker sends SIGTERM
-CMD exec /opt/signal-gateway/entrypoint.sh
+CMD exec bash /opt/signal-gateway/entrypoint.sh
